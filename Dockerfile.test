@@ -6,7 +6,8 @@ WORKDIR     /sretoolbox
 
 COPY        . ./
 
-RUN         make develop
+RUN         pip install pipenv
+RUN         pipenv install --dev
 
 ENTRYPOINT  ["make"]
 CMD         ["check"]
