@@ -1,7 +1,10 @@
 SRE Toolbox
 ===========
 
-Set of tools used by multiple projects.
+Set of libraries commonly used by multiple SRE projects:
+
+- `container.Image`: class for container image inspection.
+- `utils.retry`: decorator to add resilience to function calls.
 
 Install
 -------
