@@ -3,8 +3,10 @@ SRE Toolbox
 
 Set of libraries commonly used by multiple SRE projects:
 
-- `container.Image`: class for container image inspection.
-- `utils.retry`: decorator to add resilience to function calls.
+- ``container.Image``: class for container image inspection.
+- ``container.Skopeo``: wrapper around
+  `Skopeo <https://github.com/containers/skopeo>`_.
+- ``utils.retry``: decorator to add resilience to function calls.
 
 Install
 -------
@@ -15,7 +17,7 @@ From PyPI::
 
 From source::
 
-    $ python setup.py intall
+    $ python setup.py install
 
 
 Use
@@ -42,5 +44,5 @@ Install the development requirements::
 
 Run the code checks and tests::
 
-
     $  make check
+
