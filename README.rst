@@ -6,6 +6,7 @@ Set of libraries commonly used by multiple SRE projects:
 - ``container.Image``: class for container image inspection.
 - ``container.Skopeo``: wrapper around
   `Skopeo <https://github.com/containers/skopeo>`_.
+- ``utils.replace_values``: deep replace of object values according to values map.
 - ``utils.retry``: decorator to add resilience to function calls.
 
 Install
