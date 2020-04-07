@@ -127,8 +127,9 @@ class Image:
 
         msg += f'({response.status_code}) {response.reason}'
         content = json.loads(response.content)
-        for error in content.get('errors', []):
-            msg += f', {error["message"]}'
+        if "errors" in content:
+            for error in content['errors']:
+                msg += f', {error["message"]}'
         _LOG.error('[%s, %s]', str(self), msg)
         raise requests.exceptions.HTTPError(msg)
 
