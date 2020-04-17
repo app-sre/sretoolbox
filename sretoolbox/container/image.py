@@ -143,6 +143,11 @@ class Image:
             auth = None
 
         response = requests.get(url, auth=auth)
+
+        if response.status_code == 401:
+            # Try again without auth
+            response = requests.get(url)
+
         self._raise_for_status(response, error_msg=f'unable to retrieve auth '
                                                    f'token from {url}')
 
