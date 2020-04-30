@@ -100,6 +100,22 @@ class Image:
                 json.decoder.JSONDecodeError):
             raise ImageManifestError(f"{self} can't access image manifest")
 
+    def is_from(self, other):
+        """
+        Checks if the the other image served as base image for the
+        current image.
+
+        :param other: The base image to check against
+        :type other: Image
+        :return: True if the current image has the other image as base
+        :rtype: bool
+        """
+        this_layers = self.get_manifest()['fsLayers']
+        for layer in other.get_manifest()['fsLayers']:
+            if layer not in this_layers:
+                return False
+        return True
+
     def _get_auth(self, www_auth):
         """
         Generates the authorization string.
