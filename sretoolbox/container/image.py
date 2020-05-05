@@ -57,6 +57,22 @@ class Image:
             self.registry_api = f'https://{self.registry}'
 
         self._cache_tags = None
+        self._cache_manifest = None
+
+    @retry(exceptions=json.decoder.JSONDecodeError, max_attempts=3)
+    def get_manifest(self):
+        """
+        Goes to the internet to retrieve the image manifest.
+        """
+        url = (f'{self.registry_api}/v2/{self.repository}/'
+               f'{self.image}/manifests/{self.tag}')
+        try:
+            response = self._request_get(url)
+            self._cache_manifest = response.json()
+            return self._cache_manifest
+        except (requests.exceptions.HTTPError,
+                json.decoder.JSONDecodeError):
+            raise ImageManifestError(f"{self} can't access image manifest")
 
     def get_tags(self):
         """
@@ -86,20 +102,6 @@ class Image:
 
         return all_tags
 
-    @retry(exceptions=json.decoder.JSONDecodeError, max_attempts=3)
-    def get_manifest(self):
-        """
-        Goes to the internet to retrieve the image manifest.
-        """
-        url = (f'{self.registry_api}/v2/{self.repository}/'
-               f'{self.image}/manifests/{self.tag}')
-        try:
-            response = self._request_get(url)
-            return response.json()
-        except (requests.exceptions.HTTPError,
-                json.decoder.JSONDecodeError):
-            raise ImageManifestError(f"{self} can't access image manifest")
-
     def is_from(self, other):
         """
         Checks if the the other image served as base image for the
@@ -110,11 +112,19 @@ class Image:
         :return: True if the current image has the other image as base
         :rtype: bool
         """
-        this_layers = self.get_manifest()['fsLayers']
-        for layer in other.get_manifest()['fsLayers']:
-            if layer not in this_layers:
+        for layer in other.manifest['fsLayers']:
+            if layer not in self.manifest['fsLayers']:
                 return False
         return True
+
+    @property
+    def manifest(self):
+        """
+        Property to cache the manifest returned but get_manifest()
+        """
+        if self._cache_manifest is None:
+            self._cache_manifest = self.get_manifest()
+        return self._cache_manifest
 
     def _get_auth(self, www_auth):
         """
@@ -227,6 +237,25 @@ class Image:
 
         return www_authenticate
 
+    def _raise_for_status(self, response, error_msg=None):
+        """
+        Includes the error messages, important for a registry
+        """
+        if response.status_code < 400:
+            return None
+
+        msg = ''
+        if error_msg is not None:
+            msg += f'{error_msg}: '
+
+        msg += f'({response.status_code}) {response.reason}'
+        content = json.loads(response.content)
+        if "errors" in content:
+            for error in content['errors']:
+                msg += f', {error["message"]}'
+        _LOG.error('[%s, %s]', str(self), msg)
+        raise requests.exceptions.HTTPError(msg)
+
     def _request_get(self, url):
         # Try first without 'Authorization' header
         headers = {
@@ -248,25 +277,6 @@ class Image:
         self._raise_for_status(response)
         return response
 
-    def _raise_for_status(self, response, error_msg=None):
-        """
-        Includes the error messages, important for a registry
-        """
-        if response.status_code < 400:
-            return None
-
-        msg = ''
-        if error_msg is not None:
-            msg += f'{error_msg}: '
-
-        msg += f'({response.status_code}) {response.reason}'
-        content = json.loads(response.content)
-        if "errors" in content:
-            for error in content['errors']:
-                msg += f', {error["message"]}'
-        _LOG.error('[%s, %s]', str(self), msg)
-        raise requests.exceptions.HTTPError(msg)
-
     @property
     def _tags(self):
         if self._cache_tags is None:
@@ -277,13 +287,22 @@ class Image:
 
         return self._cache_tags
 
+    def __bool__(self):
+        try:
+            return bool(self.manifest)
+        except ImageManifestError:
+            return False
+
+    def __contains__(self, item):
+        return item in self._tags
+
     def __eq__(self, other):
         # Two instances are considered equal if both of their
         # manifests are accessible and first item of the 'history'
         # (the most recent) is the same.
         try:
-            manifest = self.get_manifest()
-            other_manifest = other.get_manifest()
+            manifest = self.manifest
+            other_manifest = other.manifest
         except ImageManifestError as details:
             raise ImageComparisonError(details)
 
@@ -303,8 +322,8 @@ class Image:
     def __len__(self):
         return len(self._tags)
 
-    def __contains__(self, item):
-        return item in self._tags
+    def __repr__(self):
+        return f"{self.__class__.__name__}(url='{self}')"
 
     def __str__(self):
         return (f'{self.scheme}'
@@ -312,13 +331,3 @@ class Image:
                 f'/{self.repository}'
                 f'/{self.image}'
                 f':{self.tag}')
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}(url='{self}')"
-
-    def __bool__(self):
-        try:
-            self.get_manifest()
-            return True
-        except ImageManifestError:
-            return False
