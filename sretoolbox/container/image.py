@@ -58,6 +58,20 @@ class Image:
 
         self._cache_tags = None
 
+    @retry(exceptions=json.decoder.JSONDecodeError, max_attempts=3)
+    def get_manifest(self):
+        """
+        Goes to the internet to retrieve the image manifest.
+        """
+        url = (f'{self.registry_api}/v2/{self.repository}/'
+               f'{self.image}/manifests/{self.tag}')
+        try:
+            response = self._request_get(url)
+            return response.json()
+        except (requests.exceptions.HTTPError,
+                json.decoder.JSONDecodeError):
+            raise ImageManifestError(f"{self} can't access image manifest")
+
     def get_tags(self):
         """
         Goes to the internet to retrieve all the image tags.
@@ -85,20 +99,6 @@ class Image:
             all_tags.extend(tags)
 
         return all_tags
-
-    @retry(exceptions=json.decoder.JSONDecodeError, max_attempts=3)
-    def get_manifest(self):
-        """
-        Goes to the internet to retrieve the image manifest.
-        """
-        url = (f'{self.registry_api}/v2/{self.repository}/'
-               f'{self.image}/manifests/{self.tag}')
-        try:
-            response = self._request_get(url)
-            return response.json()
-        except (requests.exceptions.HTTPError,
-                json.decoder.JSONDecodeError):
-            raise ImageManifestError(f"{self} can't access image manifest")
 
     def is_from(self, other):
         """
@@ -227,6 +227,25 @@ class Image:
 
         return www_authenticate
 
+    def _raise_for_status(self, response, error_msg=None):
+        """
+        Includes the error messages, important for a registry
+        """
+        if response.status_code < 400:
+            return None
+
+        msg = ''
+        if error_msg is not None:
+            msg += f'{error_msg}: '
+
+        msg += f'({response.status_code}) {response.reason}'
+        content = json.loads(response.content)
+        if "errors" in content:
+            for error in content['errors']:
+                msg += f', {error["message"]}'
+        _LOG.error('[%s, %s]', str(self), msg)
+        raise requests.exceptions.HTTPError(msg)
+
     def _request_get(self, url):
         # Try first without 'Authorization' header
         headers = {
@@ -248,25 +267,6 @@ class Image:
         self._raise_for_status(response)
         return response
 
-    def _raise_for_status(self, response, error_msg=None):
-        """
-        Includes the error messages, important for a registry
-        """
-        if response.status_code < 400:
-            return None
-
-        msg = ''
-        if error_msg is not None:
-            msg += f'{error_msg}: '
-
-        msg += f'({response.status_code}) {response.reason}'
-        content = json.loads(response.content)
-        if "errors" in content:
-            for error in content['errors']:
-                msg += f', {error["message"]}'
-        _LOG.error('[%s, %s]', str(self), msg)
-        raise requests.exceptions.HTTPError(msg)
-
     @property
     def _tags(self):
         if self._cache_tags is None:
@@ -276,6 +276,16 @@ class Image:
                 self._cache_tags = []
 
         return self._cache_tags
+
+    def __bool__(self):
+        try:
+            self.get_manifest()
+            return True
+        except ImageManifestError:
+            return False
+
+    def __contains__(self, item):
+        return item in self._tags
 
     def __eq__(self, other):
         # Two instances are considered equal if both of their
@@ -303,8 +313,8 @@ class Image:
     def __len__(self):
         return len(self._tags)
 
-    def __contains__(self, item):
-        return item in self._tags
+    def __repr__(self):
+        return f"{self.__class__.__name__}(url='{self}')"
 
     def __str__(self):
         return (f'{self.scheme}'
@@ -312,13 +322,3 @@ class Image:
                 f'/{self.repository}'
                 f'/{self.image}'
                 f':{self.tag}')
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}(url='{self}')"
-
-    def __bool__(self):
-        try:
-            self.get_manifest()
-            return True
-        except ImageManifestError:
-            return False
