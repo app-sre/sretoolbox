@@ -57,6 +57,7 @@ class Image:
             self.registry_api = f'https://{self.registry}'
 
         self._cache_tags = None
+        self._cache_manifest = None
 
     @retry(exceptions=json.decoder.JSONDecodeError, max_attempts=3)
     def get_manifest(self):
@@ -67,7 +68,8 @@ class Image:
                f'{self.image}/manifests/{self.tag}')
         try:
             response = self._request_get(url)
-            return response.json()
+            self._cache_manifest = response.json()
+            return self._cache_manifest
         except (requests.exceptions.HTTPError,
                 json.decoder.JSONDecodeError):
             raise ImageManifestError(f"{self} can't access image manifest")
@@ -110,11 +112,19 @@ class Image:
         :return: True if the current image has the other image as base
         :rtype: bool
         """
-        this_layers = self.get_manifest()['fsLayers']
-        for layer in other.get_manifest()['fsLayers']:
-            if layer not in this_layers:
+        for layer in other.manifest['fsLayers']:
+            if layer not in self.manifest['fsLayers']:
                 return False
         return True
+
+    @property
+    def manifest(self):
+        """
+        Property to cache the manifest returned but get_manifest()
+        """
+        if self._cache_manifest is None:
+            self._cache_manifest = self.get_manifest()
+        return self._cache_manifest
 
     def _get_auth(self, www_auth):
         """
@@ -279,8 +289,7 @@ class Image:
 
     def __bool__(self):
         try:
-            self.get_manifest()
-            return True
+            return bool(self.manifest)
         except ImageManifestError:
             return False
 
@@ -292,8 +301,8 @@ class Image:
         # manifests are accessible and first item of the 'history'
         # (the most recent) is the same.
         try:
-            manifest = self.get_manifest()
-            other_manifest = other.get_manifest()
+            manifest = self.manifest
+            other_manifest = other.manifest
         except ImageManifestError as details:
             raise ImageComparisonError(details)
 
