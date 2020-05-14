@@ -35,8 +35,11 @@ class Image:
                          the tag provided in the url or the default one
     :param username: (optional) The private registry username
     :param password: (optional) The private registry password
+    :param auth_server: (optional) The host that the username and password are
+                        meant for
     """
-    def __init__(self, url, tag_override=None, username=None, password=None):
+    def __init__(self, url, tag_override=None, username=None, password=None,
+                 auth_server=None):
         image_data = self._parse_image_url(url)
         self.scheme = image_data['scheme']
         self.registry = image_data['registry']
@@ -50,6 +53,7 @@ class Image:
 
         self.username = username
         self.password = password
+        self.auth_server = auth_server
 
         if self.registry == 'docker.io':
             self.registry_api = 'https://registry-1.docker.io'
@@ -141,6 +145,13 @@ class Image:
             auth = (self.username, self.password)
         else:
             auth = None
+
+        # When the auth_server is provided, we must check if
+        # it matches the registry, otherwise we don't send the
+        # auth headers (to avoid leaking the credentials)
+        if self.auth_server is not None:
+            if self.auth_server != self.registry:
+                auth = None
 
         response = requests.get(url, auth=auth)
 
