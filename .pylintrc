@@ -1,2 +1,3 @@
 [MESSAGES CONTROL]
-disable = too-many-instance-attributes
+disable = too-many-instance-attributes,
+          too-many-arguments
