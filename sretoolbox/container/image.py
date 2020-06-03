@@ -108,8 +108,10 @@ class Image:
 
             if next_page is None:
                 break
-
-            url = f'{self.registry_api}{next_page["url"]}'
+            if self.registry_api in next_page["url"]:
+                url = next_page["url"]
+            else:
+                url = f'{self.registry_api}{next_page["url"]}'
             response = self._request_get(url)
 
             tags = response.json()['tags']
