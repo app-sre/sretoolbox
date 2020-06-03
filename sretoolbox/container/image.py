@@ -51,9 +51,16 @@ class Image:
         else:
             self.tag = tag_override
 
-        self.username = username
-        self.password = password
-        self.auth_server = auth_server
+        if all([username is not None,
+                password is not None]):
+            self.auth = (username, password)
+        else:
+            self.auth = None
+        # When the auth_server is provided, we must check if
+        # it matches the registry, otherwise we don't send the
+        # auth headers (to avoid leaking the credentials)
+        if auth_server is not None and auth_server != self.registry:
+            self.auth = None
 
         if self.registry == 'docker.io':
             self.registry_api = 'https://registry-1.docker.io'
@@ -136,7 +143,8 @@ class Image:
 
     def _get_auth(self, www_auth):
         """
-        Generates the authorization string.
+        Generates the authorization string using the token acquired
+        from the www_auth endpoint.
         """
         scheme = www_auth.pop("scheme")
 
@@ -144,20 +152,7 @@ class Image:
         for key, value in www_auth.items():
             url += f'{key}={value}&'
 
-        if all([self.username is not None,
-                self.password is not None]):
-            auth = (self.username, self.password)
-        else:
-            auth = None
-
-        # When the auth_server is provided, we must check if
-        # it matches the registry, otherwise we don't send the
-        # auth headers (to avoid leaking the credentials)
-        if self.auth_server is not None:
-            if self.auth_server != self.registry:
-                auth = None
-
-        response = requests.get(url, auth=auth)
+        response = requests.get(url, auth=self.auth)
 
         if response.status_code == 401:
             # Try again without auth
@@ -283,7 +278,8 @@ class Image:
         headers = {
             'Accept': 'application/vnd.docker.distribution.manifest.v1+json'
         }
-        response = requests.get(url, headers=headers)
+
+        response = requests.get(url, headers=headers, auth=self.auth)
 
         # Unauthorized, meaning we have to acquire a token
         if response.status_code == 401:
