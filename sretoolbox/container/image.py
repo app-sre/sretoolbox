@@ -51,9 +51,16 @@ class Image:
         else:
             self.tag = tag_override
 
-        self.username = username
-        self.password = password
-        self.auth_server = auth_server
+        if all([username is not None,
+                password is not None]):
+            self.auth = (username, password)
+        else:
+            self.auth = None
+        # When the auth_server is provided, we must check if
+        # it matches the registry, otherwise we don't send the
+        # auth headers (to avoid leaking the credentials)
+        if auth_server is not None and auth_server != self.registry:
+            self.auth = None
 
         if self.registry == 'docker.io':
             self.registry_api = 'https://registry-1.docker.io'
@@ -68,8 +75,11 @@ class Image:
         """
         Goes to the internet to retrieve the image manifest.
         """
-        url = (f'{self.registry_api}/v2/{self.repository}/'
-               f'{self.image}/manifests/{self.tag}')
+        url = f'{self.registry_api}/v2'
+        if self.repository is not None:
+            url += f'/{self.repository}'
+        url += f'/{self.image}/manifests/{self.tag}'
+
         try:
             response = self._request_get(url)
             self._cache_manifest = response.json()
@@ -83,22 +93,23 @@ class Image:
         Goes to the internet to retrieve all the image tags.
         """
         tags_per_page = 50
-        url = f'{self.registry_api}/v2/{self.repository}/{self.image}' \
-              f'/tags/list?n={tags_per_page}'
-        response = self._request_get(url)
 
+        url = f'{self.registry_api}/v2'
+        if self.repository is not None:
+            url += f'/{self.repository}'
+        url += f'/{self.image}/tags/list?n={tags_per_page}'
+
+        response = self._request_get(url)
         tags = all_tags = response.json()['tags']
 
         # Tags are paginated
         while not len(tags) < tags_per_page:
-            link_header = response.headers.get('Link')
-            if link_header is None:
+            next_page = response.links.get('next')
+
+            if next_page is None:
                 break
 
-            # Link is given between "<" and ">". Example:
-            # '</v2/app-sre/aws-cli/tags/list?next_page=KkOw&n=50>; rel="next"'
-            link = link_header.split('<', 1)[1].split('>', 1)[0]
-            url = f'{self.registry_api}{link}'
+            url = f'{self.registry_api}{next_page["url"]}'
             response = self._request_get(url)
 
             tags = response.json()['tags']
@@ -132,7 +143,8 @@ class Image:
 
     def _get_auth(self, www_auth):
         """
-        Generates the authorization string.
+        Generates the authorization string using the token acquired
+        from the www_auth endpoint.
         """
         scheme = www_auth.pop("scheme")
 
@@ -140,20 +152,7 @@ class Image:
         for key, value in www_auth.items():
             url += f'{key}={value}&'
 
-        if all([self.username is not None,
-                self.password is not None]):
-            auth = (self.username, self.password)
-        else:
-            auth = None
-
-        # When the auth_server is provided, we must check if
-        # it matches the registry, otherwise we don't send the
-        # auth headers (to avoid leaking the credentials)
-        if self.auth_server is not None:
-            if self.auth_server != self.registry:
-                auth = None
-
-        response = requests.get(url, auth=auth)
+        response = requests.get(url, auth=self.auth)
 
         if response.status_code == 401:
             # Try again without auth
@@ -200,7 +199,6 @@ class Image:
 
         default_scheme = 'docker://'
         default_registry = 'docker.io'
-        default_repo = 'library'
         default_tag = 'latest'
 
         parsed_image_url = re.search(
@@ -232,7 +230,10 @@ class Image:
             image_url_struct['registry'] += f':{port}'
 
         if image_url_struct.get('repository') is None:
-            image_url_struct['repository'] = default_repo
+            if image_url_struct['registry'] == 'docker.io':
+                image_url_struct['repository'] = 'library'
+            else:
+                image_url_struct['repository'] = None
 
         if image_url_struct.get('tag') is None:
             image_url_struct['tag'] = default_tag
@@ -277,13 +278,15 @@ class Image:
         headers = {
             'Accept': 'application/vnd.docker.distribution.manifest.v1+json'
         }
-        response = requests.get(url, headers=headers)
+
+        response = requests.get(url, headers=headers, auth=self.auth)
 
         # Unauthorized, meaning we have to acquire a token
         if response.status_code == 401:
             auth_specs = response.headers.get('Www-Authenticate')
             if auth_specs is None:
                 self._raise_for_status(response)
+
             www_auth = self._parse_www_auth(auth_specs)
 
             # Try again, this time with the Authorization header
@@ -342,8 +345,8 @@ class Image:
         return f"{self.__class__.__name__}(url='{self}')"
 
     def __str__(self):
-        return (f'{self.scheme}'
-                f'{self.registry}'
-                f'/{self.repository}'
-                f'/{self.image}'
-                f':{self.tag}')
+        full_url = f'{self.scheme}{self.registry}'
+        if self.repository is not None:
+            full_url += f'/{self.repository}'
+        full_url += f'/{self.image}:{self.tag}'
+        return full_url
