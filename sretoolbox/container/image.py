@@ -68,8 +68,11 @@ class Image:
         """
         Goes to the internet to retrieve the image manifest.
         """
-        url = (f'{self.registry_api}/v2/{self.repository}/'
-               f'{self.image}/manifests/{self.tag}')
+        url = f'{self.registry_api}/v2'
+        if self.repository is not None:
+            url += f'/{self.repository}'
+        url += f'/{self.image}/manifests/{self.tag}'
+
         try:
             response = self._request_get(url)
             self._cache_manifest = response.json()
@@ -83,10 +86,13 @@ class Image:
         Goes to the internet to retrieve all the image tags.
         """
         tags_per_page = 50
-        url = f'{self.registry_api}/v2/{self.repository}/{self.image}' \
-              f'/tags/list?n={tags_per_page}'
-        response = self._request_get(url)
 
+        url = f'{self.registry_api}/v2'
+        if self.repository is not None:
+            url += f'/{self.repository}'
+        url += f'/{self.image}/tags/list?n={tags_per_page}'
+
+        response = self._request_get(url)
         tags = all_tags = response.json()['tags']
 
         # Tags are paginated
@@ -200,7 +206,6 @@ class Image:
 
         default_scheme = 'docker://'
         default_registry = 'docker.io'
-        default_repo = 'library'
         default_tag = 'latest'
 
         parsed_image_url = re.search(
@@ -232,7 +237,10 @@ class Image:
             image_url_struct['registry'] += f':{port}'
 
         if image_url_struct.get('repository') is None:
-            image_url_struct['repository'] = default_repo
+            if image_url_struct['registry'] == 'docker.io':
+                image_url_struct['repository'] = 'library'
+            else:
+                image_url_struct['repository'] = None
 
         if image_url_struct.get('tag') is None:
             image_url_struct['tag'] = default_tag
@@ -284,6 +292,7 @@ class Image:
             auth_specs = response.headers.get('Www-Authenticate')
             if auth_specs is None:
                 self._raise_for_status(response)
+
             www_auth = self._parse_www_auth(auth_specs)
 
             # Try again, this time with the Authorization header
@@ -342,8 +351,8 @@ class Image:
         return f"{self.__class__.__name__}(url='{self}')"
 
     def __str__(self):
-        return (f'{self.scheme}'
-                f'{self.registry}'
-                f'/{self.repository}'
-                f'/{self.image}'
-                f':{self.tag}')
+        full_url = f'{self.scheme}{self.registry}'
+        if self.repository is not None:
+            full_url += f'/{self.repository}'
+        full_url += f'/{self.image}:{self.tag}'
+        return full_url
