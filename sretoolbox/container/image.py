@@ -278,7 +278,9 @@ class Image:
     def _request_get(self, url):
         # Try first without 'Authorization' header
         headers = {
-            'Accept': 'application/vnd.docker.distribution.manifest.v1+json'
+            'Accept':
+                'application/vnd.docker.distribution.manifest.v1+json,'
+                'application/vnd.docker.distribution.manifest.v1+prettyjws',
         }
 
         response = requests.get(url, headers=headers, auth=self.auth)
