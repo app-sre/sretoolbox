@@ -329,8 +329,7 @@ class Image:
         except ImageManifestError as details:
             raise ImageComparisonError(details)
 
-        if (manifest['history'][0]['v1Compatibility'] ==
-                other_manifest['history'][0]['v1Compatibility']):
+        if manifest['fsLayers'] == other_manifest['fsLayers']:
             return True
 
         return False
