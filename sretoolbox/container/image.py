@@ -8,6 +8,8 @@ import re
 
 import requests
 
+from requests.exceptions import HTTPError
+
 from sretoolbox.utils import retry
 
 
@@ -17,12 +19,6 @@ _LOG = logging.getLogger(__name__)
 class ImageComparisonError(Exception):
     """
     Used when the comparison between images is not possible.
-    """
-
-
-class ImageManifestError(Exception):
-    """
-    Used when the image manifest can't be retrieved or parsed.
     """
 
 
@@ -70,7 +66,6 @@ class Image:
         self._cache_tags = None
         self._cache_manifest = None
 
-    @retry(exceptions=json.decoder.JSONDecodeError, max_attempts=3)
     def get_manifest(self):
         """
         Goes to the internet to retrieve the image manifest.
@@ -80,13 +75,9 @@ class Image:
             url += f'/{self.repository}'
         url += f'/{self.image}/manifests/{self.tag}'
 
-        try:
-            response = self._request_get(url)
-            self._cache_manifest = response.json()
-            return self._cache_manifest
-        except (requests.exceptions.HTTPError,
-                json.decoder.JSONDecodeError):
-            raise ImageManifestError(f"{self} can't access image manifest")
+        response = self._request_get(url)
+        self._cache_manifest = response.json()
+        return self._cache_manifest
 
     def get_tags(self):
         """
@@ -268,13 +259,18 @@ class Image:
             msg += f'{error_msg}: '
 
         msg += f'({response.status_code}) {response.reason}'
-        content = json.loads(response.content)
+        try:
+            content = response.json()
+        except json.decoder.JSONDecodeError:
+            raise HTTPError(msg)
+
         if "errors" in content:
             for error in content['errors']:
                 msg += f', {error["message"]}'
         _LOG.error('[%s, %s]', str(self), msg)
-        raise requests.exceptions.HTTPError(msg)
+        raise HTTPError(msg)
 
+    @retry(exceptions=HTTPError, max_attempts=5)
     def _request_get(self, url):
         # Try first without 'Authorization' header
         headers = {
@@ -305,7 +301,7 @@ class Image:
         if self._cache_tags is None:
             try:
                 self._cache_tags = self.get_tags()
-            except requests.exceptions.HTTPError:
+            except HTTPError:
                 self._cache_tags = []
 
         return self._cache_tags
@@ -313,7 +309,7 @@ class Image:
     def __bool__(self):
         try:
             return bool(self.manifest)
-        except ImageManifestError:
+        except HTTPError:
             return False
 
     def __contains__(self, item):
@@ -326,7 +322,7 @@ class Image:
         try:
             manifest = self.manifest
             other_manifest = other.manifest
-        except ImageManifestError as details:
+        except HTTPError as details:
             raise ImageComparisonError(details)
 
         if manifest['fsLayers'] == other_manifest['fsLayers']:
