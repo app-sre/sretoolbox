@@ -276,7 +276,8 @@ class Image:
         headers = {
             'Accept':
                 'application/vnd.docker.distribution.manifest.v1+json,'
-                'application/vnd.docker.distribution.manifest.v1+prettyjws',
+                'application/vnd.docker.distribution.manifest.v2+json,'
+                'application/vnd.docker.distribution.manifest.v1+prettyjws,'
         }
 
         response = requests.get(url, headers=headers, auth=self.auth)
@@ -325,7 +326,18 @@ class Image:
         except HTTPError as details:
             raise ImageComparisonError(details)
 
-        if manifest['fsLayers'] == other_manifest['fsLayers']:
+        manifest_version = manifest['schemaVersion']
+        other_manifest_version = other_manifest['schemaVersion']
+
+        if manifest_version != other_manifest_version:
+            return False
+
+        if manifest_version == 1:
+            layers_key = 'fsLayers'
+        else:
+            layers_key = 'layers'
+
+        if manifest[layers_key] == other_manifest[layers_key]:
             return True
 
         return False
