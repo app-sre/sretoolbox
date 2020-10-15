@@ -10,7 +10,7 @@ from functools import wraps
 
 
 # source: https://www.calazan.com/retry-decorator-for-python-3/
-def retry(exceptions=Exception, max_attempts=3):
+def retry(exceptions=Exception, max_attempts=3, no_retry_exceptions=()):
     """
     Adds resilience to function calls.
     """
@@ -21,6 +21,8 @@ def retry(exceptions=Exception, max_attempts=3):
             for attempt in itertools.count(1):
                 try:
                     return function(*args, **kwargs)
+                except no_retry_exceptions as exception:
+                    raise exception
                 except exceptions as exception:  # pylint: disable=broad-except
                     if attempt > max_attempts - 1:
                         raise exception
