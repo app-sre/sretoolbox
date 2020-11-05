@@ -267,7 +267,7 @@ class Image:
         if "errors" in content:
             for error in content['errors']:
                 msg += f', {error["message"]}'
-        _LOG.error('[%s, %s]', str(self), msg)
+        _LOG.debug('[%s, %s]', str(self), msg)
         raise HTTPError(msg)
 
     @retry(exceptions=HTTPError, max_attempts=5)
