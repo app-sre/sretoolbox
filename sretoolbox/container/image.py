@@ -292,7 +292,7 @@ class Image:
 
             # Try again, this time with the Authorization header
             headers['Authorization'] = self._get_auth(www_auth)
-            response = requests.get(url, headers=headers, auth=self.auth)
+            response = requests.get(url, headers=headers)
 
         self._raise_for_status(response)
         return response
