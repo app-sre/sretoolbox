@@ -24,7 +24,8 @@ class Skopeo:
         self.dry_run = dry_run
         self.skopeo_cmd = spawn.find_executable('skopeo')
 
-    def copy(self, src_image, dst_image, src_creds=None, dest_creds=None):
+    def copy(self, src_image, dst_image, src_creds=None, dest_creds=None,
+             copy_all=False):
         """
         Runs the skopeo "copy" sub-command.
 
@@ -43,9 +44,14 @@ class Skopeo:
                            credentials in the format
                            "username:password".
         :type dest_creds: str
+        :param copy_all: (optional) Whether to copy all the architectures
+                         from a given tag or only the architecture of the OS
+                         Skopeo is running on.
+        :type copy_all: bool
         """
         self._run_skopeo('copy', str(src_image), str(dst_image),
-                         src_creds=src_creds, dest_creds=dest_creds)
+                         src_creds=src_creds, dest_creds=dest_creds,
+                         all_=copy_all)
 
     def inspect(self, image, creds=None):
         """
@@ -67,7 +73,8 @@ class Skopeo:
     def _run_skopeo(self, subcomand, *args,
                     src_creds=None,
                     dest_creds=None,
-                    creds=None):
+                    creds=None,
+                    all_=False):
         """
         Helper to streamline the execution of skopeo commands
 
@@ -85,6 +92,9 @@ class Skopeo:
                            credentials in the format
                            "username:password".
         :type dest_creds: str
+        :param all_: (optional) Whether to add the --all option to the
+                     command line.
+        :type all_: bool
         """
         cmd = [self.skopeo_cmd, subcomand]
 
@@ -94,6 +104,8 @@ class Skopeo:
             cmd.append(f'--dest-creds={dest_creds}')
         if creds is not None:
             cmd.append(f'--creds={creds}')
+        if all_:
+            cmd.append(f'--all')
         cmd.extend(args)
 
         if subcomand == 'copy':
