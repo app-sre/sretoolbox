@@ -47,6 +47,8 @@ class Image:
         else:
             self.tag = tag_override
 
+        self.username = username
+        self.password = password
         if all([username is not None,
                 password is not None]):
             self.auth = (username, password)
@@ -55,7 +57,8 @@ class Image:
         # When the auth_server is provided, we must check if
         # it matches the registry, otherwise we don't send the
         # auth headers (to avoid leaking the credentials)
-        if auth_server is not None and auth_server != self.registry:
+        self.auth_server = auth_server
+        if self.auth_server is not None and self.auth_server != self.registry:
             self.auth = None
 
         if self.registry == 'docker.io':
@@ -343,7 +346,9 @@ class Image:
         return False
 
     def __getitem__(self, item):
-        return Image(url=str(self), tag_override=str(item))
+        return Image(url=str(self), tag_override=str(item),
+                     username=self.username, password=self.password,
+                     auth_server=self.auth_server)
 
     def __iter__(self):
         for tag in self._tags:
