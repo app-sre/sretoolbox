@@ -8,7 +8,7 @@ import re
 
 import requests
 
-from requests.exceptions import HTTPError, ConnectionError
+from requests.exceptions import HTTPError
 
 from sretoolbox.utils import retry
 
@@ -273,7 +273,7 @@ class Image:
         _LOG.debug('[%s, %s]', str(self), msg)
         raise HTTPError(msg)
 
-    @retry(exceptions=(HTTPError, ConnectionError), max_attempts=5)
+    @retry(exceptions=(HTTPError, requests.ConnectionError), max_attempts=5)
     def _request_get(self, url):
         # Try first without 'Authorization' header
         headers = {
