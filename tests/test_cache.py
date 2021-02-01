@@ -7,22 +7,22 @@ class ExampleCacheConsumer:
     this is a test class
     """
 
-    @cache.static("collection")
+    @cache.static("my-fancy-key")
     def static(self):
         """
-        cache based on collection name
+        cache based on static key name
         this returns a new map on every call - so that we can check for reference equality
         """
         return {}
 
-    @cache.remove("collection")
+    @cache.remove_static("my-fancy-key")
     def remove(self):
         """
-        mutate something in collection - needing a cache flush afterwards
+        mutate something - needing a cache flush afterwards
         """
         return
 
-    @cache.replace("collection")
+    @cache.replace_static("my-fancy-key")
     def replace(self):
         """
         store result without an initial cache lookup
@@ -36,6 +36,32 @@ class ExampleCacheConsumer:
     def computed(self, collection_id, item_id):
         """
         store/lookup with computed cache key
+        this returns a new map on every call - so that we can check for reference equality
+        """
+        return {
+            "collection_id": collection_id,
+            "item_id": item_id
+        }
+
+    @cache.replace_computed(
+        lambda collection_id, item_id: (collection_id, item_id)
+    )
+    def replace_computed(self, collection_id, item_id):
+        """
+        update with computed cache key
+        this returns a new map on every call - so that we can check for reference equality
+        """
+        return {
+            "collection_id": collection_id,
+            "item_id": item_id
+        }
+
+    @cache.remove_computed(
+        lambda collection_id, item_id: (collection_id, item_id)
+    )
+    def remove_computed(self, collection_id, item_id):
+        """
+        mutate something - needing a computed cache invalidation afterwards
         this returns a new map on every call - so that we can check for reference equality
         """
         return {
@@ -57,12 +83,18 @@ class TestCache:
             instance.remove()
         def computed(instance):
             instance.computed("foo", "bar")
+        def replace_computed(instance):
+            instance.replace_computed("foo", "bar")
+        def remove_computed(instance):
+            instance.remove_computed("foo", "bar")
 
         matrix = itertools.permutations([
             static,
             replace,
             remove,
-            computed
+            computed,
+            replace_computed,
+            remove_computed
         ])
 
         for test in matrix:
@@ -70,7 +102,7 @@ class TestCache:
             for func in test:
                 func(ecc)
 
-    def test_cached_get(self):
+    def test_static_get(self):
         ecc = ExampleCacheConsumer()
         first_result = ecc.static()
         second_result = ecc.static()
@@ -92,10 +124,35 @@ class TestCache:
         third_result = ecc.static()
         assert second_result is third_result
 
-    def test_dynamic_get(self):
+    def test_copmuted_get(self):
         ecc = ExampleCacheConsumer()
         first_result = ecc.computed(1, 2)
         second_result = ecc.computed(1, 2)
         assert first_result is second_result
         third_result = ecc.computed(2, 3)
         assert second_result is not third_result
+
+    def test_copmuted_autoremove(self):
+        ecc = ExampleCacheConsumer()
+        first_result = ecc.computed(1, 2)
+        # trigger autoremove
+        ecc.remove_computed(1, 2)
+        second_result = ecc.computed(1, 2)
+        assert first_result is not second_result
+
+    def test_copmuted_replace(self):
+        ecc = ExampleCacheConsumer()
+        first_result = ecc.computed(1, 2)
+        second_result = ecc.replace_computed(1, 2)
+        assert first_result is not second_result
+        third_result = ecc.computed(1, 2)
+        assert second_result is third_result
+
+    def test_raw_functions(self):
+        ecc = ExampleCacheConsumer()
+        cache.raw_set(ecc, "key", "value")
+        value = cache.raw_get(ecc, "key")
+        assert value is "value"
+        cache.raw_remove(ecc, "key")
+        with pytest.raises(KeyError):
+            value = cache.raw_get(ecc, "key")
