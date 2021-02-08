@@ -21,7 +21,6 @@ class ExampleCacheConsumer:
         cache based on function name
         this returns a new map on every call - so that we can check for reference equality
         """
-        return {
             "foo": foo,
             "bar": bar
         }
@@ -111,4 +110,3 @@ class TestCache:
 
         assert first is not second
         assert second is not third
-
