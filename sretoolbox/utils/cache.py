@@ -3,165 +3,61 @@ Caching helper decorator
 """
 
 import functools
-import weakref
 
-_CACHES = weakref.WeakKeyDictionary()
+_CACHE = dict()
 
 
-def static(key):
+def cache(func):
     """
-    Decorates a class method to look up and cache the execution result.
+    Decorates a function to look up and cache the execution result.
 
-    Cache access is scoped by 2 things: class instance and `key`
+    Cache access is scoped by a tuple built from:
+    - the wrapped function object
+    - *args
+    - tuple from **kwargs
 
-    :param key: static cache key
-    :type key: string
+    This has some pitfalls: the way arguments are passed to the called function matters!
+
+    All build different cache keys:
+    foo(a, b, c)      # (foo, (a, b, c), ())
+    foo(a, b, c=c)    # (foo, (a, b), (c))
+    foo(a, b=b, c=c)  # (foo, (a), )
+    foo(a, c=c, b=b)  # (foo, (a), (c, b))
     """
-    def decorate(func):
-        @functools.wraps(func)
-        def with_cache_get(self, *args, **kwargs):
-            cache = _lazy_init(self)
-            value = None
-            try:
-                value = cache[key]
-            except KeyError:
-                value = func(self, *args, **kwargs)
-                cache[key] = value
-            return value
-        return with_cache_get
-    return decorate
+    @functools.wraps(func)
+    def with_cache(*args, **kwargs):
+        value = None
+        key = (func, args, tuple(kwargs))
+        print("key:", key)
+        try:
+            value = _CACHE[key]
+        except KeyError:
+            value = func(*args, **kwargs)
+            _CACHE[key] = value
+        return value
+    return with_cache
 
 
-def computed(key_func):
+def flush_all():
     """
-    Decorates a class method to look up and cache the execution result.
-
-    Cache access is scoped by 2 things:
-    class instance and the result of `key_func`.
-    All *args and **kwargs (except `self`) are passed to this function
-    and the return value is used as cache key.
-
-    :param key_func: function to compute cache key
-    :type key: function
+    Removes all keys from the global cache object.
     """
-    def decorate(func):
-        @functools.wraps(func)
-        def with_cache_computed(self, *args, **kwargs):
-            key = key_func(*args, **kwargs)
-
-            cache = _lazy_init(self)
-            value = None
-            try:
-                value = cache[key]
-            except KeyError:
-                value = func(self, *args, **kwargs)
-                cache[key] = value
-            return value
-        return with_cache_computed
-    return decorate
+    _CACHE.clear()
 
 
-def remove_static(key):
+def flush_for(func):
     """
-    Decorates a class method to remove the specified
-    static cache key before execution
+    Removes all keys associated with `func` from the global cache object.
+    Iterates through all cache keys to do so.
     """
-    def decorate(func):
-        @functools.wraps(func)
-        def with_cache_remove_static(self, *args, **kwargs):
-            raw_remove(self, key)
-            return func(self, *args, **kwargs)
-        return with_cache_remove_static
-    return decorate
 
-
-def remove_computed(key_func):
-    """
-    Decorates a class method to remove the specified
-    computed cache key before execution
-    """
-    def decorate(func):
-        @functools.wraps(func)
-        def with_cache_remove_computed(self, *args, **kwargs):
-            key = key_func(*args, **kwargs)
-            raw_remove(self, key)
-            return func(self, *args, **kwargs)
-        return with_cache_remove_computed
-    return decorate
-
-
-def replace_static(key):
-    """
-    Decorates a class method to replace the
-    specified static cache key with it's returned value
-    """
-    def decorate(func):
-        @functools.wraps(func)
-        def with_cache_replace_static(self, *args, **kwargs):
-            value = func(self, *args, **kwargs)
-            raw_set(self, key, value)
-            return value
-        return with_cache_replace_static
-    return decorate
-
-
-def replace_computed(key_func):
-    """
-    Decorates a class method to replace the
-    specified computed cache key with it's returned value
-    """
-    def decorate(func):
-        @functools.wraps(func)
-        def with_cache_replace_computed(self, *args, **kwargs):
-            key = key_func(*args, **kwargs)
-            value = func(self, *args, **kwargs)
-            raw_set(self, key, value)
-            return value
-        return with_cache_replace_computed
-    return decorate
-
-
-def raw_set(owner_ref, key, value):
-    """
-    raw_set exposes direct access to the cache.
-    pass a reference to an class instance that has @cache.init on it
-    """
-    cache = _lazy_init(owner_ref)
-    cache[key] = value
-
-
-def raw_get(owner_ref, key):
-    """
-    raw_get exposes direct access to the cache.
-    pass a reference to an class instance that has @cache.init on it
-    """
-    cache = _lazy_init(owner_ref)
-    return cache[key]
-
-
-def raw_remove(owner_ref, key):
-    """
-    raw_remove exposes direct access to remove a key from the cache
-    pass a reference to an class instance that has @cache.init on it
-    """
-    cache = _lazy_init(owner_ref)
-
-    try:
-        del cache[key]
-    except KeyError:
-        pass
-
-
-def _lazy_init(owner_ref):
-    """
-    Ensures/initializes a dedicated cache dict for `owner_ref`.
-
-    :param owner_ref: instance of class with cache-decorated member functions
-    :type owner_ref: any
-    """
-    if owner_ref in _CACHES:
-        cache = _CACHES[owner_ref]
-    else:
-        cache = {}
-        _CACHES[owner_ref] = cache
-    return cache
+    func_ref = func.__wrapped__ if "__wrapped__" in func.__dict__ else func
+    keys_to_be_flushed = []
+    for key_tuple in _CACHE:
+        print("key_tuple", key_tuple)
+        print("key_tuple[0]", key_tuple[0])
+        if key_tuple[0] is func:
+            keys_to_be_flushed.append(key_tuple)
+    print("keys_to_be_flushed", keys_to_be_flushed)
+    for key in keys_to_be_flushed:
+        del _CACHE[key]
