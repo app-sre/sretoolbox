@@ -69,7 +69,7 @@ class Image:
         self._cache_tags = None
         self._cache_manifest = None
 
-    def get_manifest(self):
+    def _get_manifest(self):
         """
         Goes to the internet to retrieve the image manifest.
         """
@@ -77,10 +77,7 @@ class Image:
         if self.repository is not None:
             url += f'/{self.repository}'
         url += f'/{self.image}/manifests/{self.tag}'
-
-        response = self._request_get(url)
-        self._cache_manifest = response.json()
-        return self._cache_manifest
+        return self._request_get(url)
 
     def get_tags(self):
         """
@@ -134,7 +131,8 @@ class Image:
         Property to cache the manifest returned but get_manifest()
         """
         if self._cache_manifest is None:
-            self._cache_manifest = self.get_manifest()
+            manifest = self._get_manifest()
+            self._cache_manifest = manifest.json()
         return self._cache_manifest
 
     def _get_auth(self, www_auth):
