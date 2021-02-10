@@ -68,6 +68,20 @@ class Image:
 
         self._cache_tags = None
         self._cache_manifest = None
+        self._cache_digest = None
+
+    @property
+    def digest(self):
+        """
+        Property to cache the digest returned but get_manifest()
+        """
+        if self._cache_digest is None:
+            manifest = self._get_manifest()
+            digest = manifest.headers.get('Docker-Content-Digest')
+            if digest is None:
+                raise HTTPError('Docker-Content-Digest header not found.')
+            self._cache_digest = digest
+        return self._cache_digest
 
     def _get_manifest(self):
         """
