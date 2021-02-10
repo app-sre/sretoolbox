@@ -68,8 +68,22 @@ class Image:
 
         self._cache_tags = None
         self._cache_manifest = None
+        self._cache_digest = None
 
-    def get_manifest(self):
+    @property
+    def digest(self):
+        """
+        Property to cache the digest returned but get_manifest()
+        """
+        if self._cache_digest is None:
+            manifest = self._get_manifest()
+            digest = manifest.headers.get('Docker-Content-Digest')
+            if digest is None:
+                raise HTTPError('Docker-Content-Digest header not found.')
+            self._cache_digest = digest
+        return self._cache_digest
+
+    def _get_manifest(self):
         """
         Goes to the internet to retrieve the image manifest.
         """
@@ -77,12 +91,9 @@ class Image:
         if self.repository is not None:
             url += f'/{self.repository}'
         url += f'/{self.image}/manifests/{self.tag}'
+        return self._request_get(url)
 
-        response = self._request_get(url)
-        self._cache_manifest = response.json()
-        return self._cache_manifest
-
-    def get_tags(self):
+    def _get_tags(self):
         """
         Goes to the internet to retrieve all the image tags.
         """
@@ -134,7 +145,8 @@ class Image:
         Property to cache the manifest returned but get_manifest()
         """
         if self._cache_manifest is None:
-            self._cache_manifest = self.get_manifest()
+            manifest = self._get_manifest()
+            self._cache_manifest = manifest.json()
         return self._cache_manifest
 
     def _get_auth(self, www_auth):
@@ -301,14 +313,39 @@ class Image:
         return response
 
     @property
-    def _tags(self):
+    def tags(self):
+        """
+        Returns the list of tags.
+        """
         if self._cache_tags is None:
             try:
-                self._cache_tags = self.get_tags()
+                self._cache_tags = self._get_tags()
             except HTTPError:
                 self._cache_tags = []
 
         return self._cache_tags
+
+    @property
+    def url_digest(self):
+        """
+        Returns the image url in the digest format.
+        """
+        url_digest = f'{self.registry}'
+        if self.repository is not None:
+            url_digest += f'/{self.repository}'
+        url_digest += f'/{self.image}@{self.digest}'
+        return url_digest
+
+    @property
+    def url_tag(self):
+        """
+        Returns the image url in the tag format.
+        """
+        url_tag = f'{self.registry}'
+        if self.repository is not None:
+            url_tag += f'/{self.repository}'
+        url_tag += f'/{self.image}:{self.tag}'
+        return url_tag
 
     def __bool__(self):
         try:
@@ -317,7 +354,7 @@ class Image:
             return False
 
     def __contains__(self, item):
-        return item in self._tags
+        return item in self.tags
 
     def __eq__(self, other):
         # Two instances are considered equal if both of their
@@ -351,18 +388,14 @@ class Image:
                      auth_server=self.auth_server)
 
     def __iter__(self):
-        for tag in self._tags:
+        for tag in self.tags:
             yield tag
 
     def __len__(self):
-        return len(self._tags)
+        return len(self.tags)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(url='{self}')"
 
     def __str__(self):
-        full_url = f'{self.scheme}{self.registry}'
-        if self.repository is not None:
-            full_url += f'/{self.repository}'
-        full_url += f'/{self.image}:{self.tag}'
-        return full_url
+        return f'{self.scheme}{self.url_tag}'
