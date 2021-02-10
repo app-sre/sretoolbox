@@ -311,6 +311,17 @@ class Image:
 
         return self._cache_tags
 
+    @property
+    def url_tag(self):
+        """
+        Returns the image url in the tag format.
+        """
+        url_tag = f'{self.registry}'
+        if self.repository is not None:
+            url_tag += f'/{self.repository}'
+        url_tag += f'/{self.image}:{self.tag}'
+        return url_tag
+
     def __bool__(self):
         try:
             return bool(self.manifest)
@@ -362,8 +373,4 @@ class Image:
         return f"{self.__class__.__name__}(url='{self}')"
 
     def __str__(self):
-        full_url = f'{self.scheme}{self.registry}'
-        if self.repository is not None:
-            full_url += f'/{self.repository}'
-        full_url += f'/{self.image}:{self.tag}'
-        return full_url
+        return f'{self.scheme}{self.url_tag}'
