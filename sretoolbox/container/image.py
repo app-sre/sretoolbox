@@ -326,6 +326,17 @@ class Image:
         return self._cache_tags
 
     @property
+    def url_digest(self):
+        """
+        Returns the image url in the digest format.
+        """
+        url_digest = f'{self.registry}'
+        if self.repository is not None:
+            url_digest += f'/{self.repository}'
+        url_digest += f'/{self.image}@{self.digest}'
+        return url_digest
+
+    @property
     def url_tag(self):
         """
         Returns the image url in the tag format.
