@@ -79,7 +79,7 @@ class Image:
         url += f'/{self.image}/manifests/{self.tag}'
         return self._request_get(url)
 
-    def get_tags(self):
+    def _get_tags(self):
         """
         Goes to the internet to retrieve all the image tags.
         """
@@ -299,10 +299,13 @@ class Image:
         return response
 
     @property
-    def _tags(self):
+    def tags(self):
+        """
+        Returns the list of tags.
+        """
         if self._cache_tags is None:
             try:
-                self._cache_tags = self.get_tags()
+                self._cache_tags = self._get_tags()
             except HTTPError:
                 self._cache_tags = []
 
@@ -315,7 +318,7 @@ class Image:
             return False
 
     def __contains__(self, item):
-        return item in self._tags
+        return item in self.tags
 
     def __eq__(self, other):
         # Two instances are considered equal if both of their
@@ -349,11 +352,11 @@ class Image:
                      auth_server=self.auth_server)
 
     def __iter__(self):
-        for tag in self._tags:
+        for tag in self.tags:
             yield tag
 
     def __len__(self):
-        return len(self._tags)
+        return len(self.tags)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(url='{self}')"
