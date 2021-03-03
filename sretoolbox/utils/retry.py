@@ -27,5 +27,6 @@ def retry(exceptions=Exception, max_attempts=3, no_retry_exceptions=()):
                     if attempt > max_attempts - 1:
                         raise exception
                     time.sleep(attempt)
+            return None
         return f_retry
     return deco_retry
