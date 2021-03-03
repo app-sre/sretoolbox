@@ -276,8 +276,8 @@ class Image:
         msg += f'({response.status_code}) {response.reason}'
         try:
             content = response.json()
-        except json.decoder.JSONDecodeError:
-            raise HTTPError(msg)
+        except json.decoder.JSONDecodeError as details:
+            raise HTTPError(msg) from details
 
         if "errors" in content:
             for error in content['errors']:
@@ -364,7 +364,7 @@ class Image:
             manifest = self.manifest
             other_manifest = other.manifest
         except HTTPError as details:
-            raise ImageComparisonError(details)
+            raise ImageComparisonError(details) from details
 
         manifest_version = manifest['schemaVersion']
         other_manifest_version = other_manifest['schemaVersion']

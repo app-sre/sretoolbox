@@ -37,4 +37,8 @@ setup(name='sretoolbox',
             'Programming Language :: Python :: 3.6',
             'Topic :: Software Development :: Libraries',
       ],
-      install_requires=['requests~=2.22'])
+      install_requires=[
+          'requests~=2.22',
+          'semver~=2.13',
+      ]
+      )

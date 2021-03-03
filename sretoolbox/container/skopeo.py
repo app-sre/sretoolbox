@@ -105,7 +105,7 @@ class Skopeo:
         if creds is not None:
             cmd.append(f'--creds={creds}')
         if all_:
-            cmd.append(f'--all')
+            cmd.append('--all')
         cmd.extend(args)
 
         if subcomand == 'copy':
