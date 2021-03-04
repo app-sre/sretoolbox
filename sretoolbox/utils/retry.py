@@ -45,9 +45,8 @@ def retry(exceptions=Exception, max_attempts=3, no_retry_exceptions=(),
                 except exceptions as exception:  # pylint: disable=broad-except
                     if attempt > max_attempts - 1:
                         raise exception
-                    else:
-                        if callable(hook):
-                            hook(exception)
+                    if callable(hook):
+                        hook(exception)
                     time.sleep(attempt)
             return None
         return f_retry
