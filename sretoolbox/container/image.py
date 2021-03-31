@@ -217,7 +217,7 @@ class Image:
             r'(?(registry)(?P<registry_slash>/))'  # Slash after domain:port
             r'(?P<repository>[\w\-]+)?'  # Repository (optional)
             r'(?(repository)(?P<repo_slash>/))'  # Slash, if repo is present
-            r'(?P<image>[\w\-]+)'  # Image path (mandatory)
+            r'(?P<image>[\w\-.]+)'  # Image path (mandatory)
             r'(?P<tag_colon>:)?'  # Tag colon (optional)
             r'(?(tag_colon)(?P<tag>[\w\-.]+))'  # Tag (if tag colon is present)
             '$', image_url)
