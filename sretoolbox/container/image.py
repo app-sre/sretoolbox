@@ -22,6 +22,16 @@ class ImageComparisonError(Exception):
     """
 
 
+class NoTagForImageByDigest(Exception):
+    """
+    Raised when the Image was constructed with a by-digest URL and an
+    operation is attempted that requires a tag.
+    """
+    def __init__(self, image):
+        super().__init__(
+            f"Can't determine a unique tag for Image: {str(image)}")
+
+
 class Image:
     """
     Represents a container image.
@@ -47,6 +57,11 @@ class Image:
         else:
             self.tag = tag_override
 
+        self._cache_digest = None
+        # If the URL was by-digest, we can cache this right away.
+        if image_data['digest']:
+            self._cache_digest = f"{image_data['digest']}"
+
         self.username = username
         self.password = password
         if all([username is not None,
@@ -68,12 +83,11 @@ class Image:
 
         self._cache_tags = None
         self._cache_manifest = None
-        self._cache_digest = None
 
     @property
     def digest(self):
         """
-        Property to cache the digest returned but get_manifest()
+        Property to cache the digest returned by get_manifest()
         """
         if self._cache_digest is None:
             manifest = self._get_manifest()
@@ -90,7 +104,12 @@ class Image:
         url = f'{self.registry_api}/v2'
         if self.repository is not None:
             url += f'/{self.repository}'
-        url += f'/{self.image}/manifests/{self.tag}'
+        # NOTE(efried): This should never go to the network. If the image was
+        # initialized by digest, the `digest` property uses that value.
+        reference = self.tag or self.digest
+        # NOTE(efried): At least for quay, this returns schemaVersion 1 by tag
+        # and 2 by digest.
+        url += f'/{self.image}/manifests/{reference}'
         return self._request_get(url)
 
     def _get_tags(self):
@@ -183,7 +202,7 @@ class Image:
             - docker://docker.io/user/fedora
             - docker://registry.example.com:5000/repo01/centos:latest
 
-        Regardless the components provided in the URL, we have to make
+        Regardless of the components provided in the URL, we have to make
         sure that we can properly split each of them and, for those
         not provided, assume safe defaults.
 
@@ -209,6 +228,10 @@ class Image:
         default_registry = 'docker.io'
         default_tag = 'latest'
 
+        # The image is either specified by digest (...@sha256:xxxx...) or
+        # by tag (...:tag-name). We decide based on the presence of the
+        # '@' or the ':'. If we find neither, by-tag is assumed,
+        # defaulting to 'latest'.
         parsed_image_url = re.search(
             r'(?P<scheme>\w+://)?'  # Scheme (optional) e.g. docker://
             r'(?P<registry>[\w\-]+[.][\w\-.]+)?'  # Registry domain (optional)
@@ -218,8 +241,15 @@ class Image:
             r'(?P<repository>[\w\-]+)?'  # Repository (optional)
             r'(?(repository)(?P<repo_slash>/))'  # Slash, if repo is present
             r'(?P<image>[\w\-.]+)'  # Image path (mandatory)
-            r'(?P<tag_colon>:)?'  # Tag colon (optional)
-            r'(?(tag_colon)(?P<tag>[\w\-.]+))'  # Tag (if tag colon is present)
+            # '@' delimiter iff it's a by-digest URI (optional)
+            r'(?P<digest_at>@)?'
+            # Digest ('sha256:' + 64 lowercase hex chars) iff '@' is present
+            r'(?(digest_at)(?P<digest>sha256:[0-9a-f]{64}))'
+            # Tag colon if it's a by-digest URI (optional)
+            # Not allowed if we found a digest
+            r'(?(digest)|(?P<tag_colon>:))?'
+            # Tag (if tag colon is present)
+            r'(?(tag_colon)(?P<tag>[\w\-.]+))'
             '$', image_url)
 
         if parsed_image_url is None:
@@ -243,7 +273,9 @@ class Image:
             else:
                 image_url_struct['repository'] = None
 
-        if image_url_struct.get('tag') is None:
+        # By-digest URIs don't use tags; but otherwise default to `latest` if
+        # absent
+        if all(image_url_struct.get(x) is None for x in ('tag', 'digest')):
             image_url_struct['tag'] = default_tag
 
         return image_url_struct
@@ -340,7 +372,14 @@ class Image:
     def url_tag(self):
         """
         Returns the image url in the tag format.
+
+        If we were constructed with a by-digest URL, this will raise
+        NoTagForImageByDigest since there may be more than one tag for a given
+        image.
         """
+        if self.tag is None:
+            raise NoTagForImageByDigest(self)
+
         url_tag = f'{self.registry}'
         if self.repository is not None:
             url_tag += f'/{self.repository}'
@@ -398,4 +437,8 @@ class Image:
         return f"{self.__class__.__name__}(url='{self}')"
 
     def __str__(self):
-        return f'{self.scheme}{self.url_tag}'
+        if self.tag is None:
+            url = self.url_digest
+        else:
+            url = self.url_tag
+        return f'{self.scheme}{url}'
