@@ -1,3 +1,4 @@
 pyproject.toml
 .coverage
 *.egg-info/
+*.pyc
