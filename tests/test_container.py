@@ -2,6 +2,7 @@ import pytest
 
 from sretoolbox.container import Image
 
+TAG = ('a61f590')
 A_SHA = (
   'sha256:bc1ed82a75f2ca160225b8281c50b7074e7678c2a1f61b1fb298e545b455925e')
 PARSER_DATA = [
@@ -76,6 +77,11 @@ STR_DATA = [
     # By digest still defaults stuff
     (f'pagerduty-operator-registry@{A_SHA}',
      f'docker://docker.io/library/pagerduty-operator-registry@{A_SHA}'),
+    # Absent tag should insert 'latest' tag
+    ('registry.access.redhat.com/ubi8/ubi-minimal',
+     'docker://registry.access.redhat.com/ubi8/ubi-minimal:latest'),
+    (f'registry.access.redhat.com/ubi8/ubi-minimal:{TAG}',
+     f'docker://registry.access.redhat.com/ubi8/ubi-minimal:{TAG}'),
 ]
 
 
