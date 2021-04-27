@@ -25,7 +25,7 @@ setup(name='sretoolbox',
       description='Set of libraries commonly used by multiple SRE projects',
       long_description=get_readme_content(),
       python_requires='>=3.6',
-      license="GPLv2+",
+      license="Apache-2.0",
       classifiers=
       [
             'Development Status :: 5 - Production/Stable',
