@@ -47,3 +47,11 @@ Run the code checks and tests::
 
     $  make check
 
+License
+-------
+
+The default license of the code in this repository is
+[http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0).
+That applies for most of the code here, as they were written from scratch,
+but exceptions exist. In any case, each module carries the corresponding
+licensing information.
