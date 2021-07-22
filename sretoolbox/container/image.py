@@ -16,6 +16,7 @@
 Abstractions around container images.
 """
 
+import contextlib
 import json
 import logging
 import re
@@ -47,8 +48,7 @@ class NoTagForImageByDigest(Exception):
 
 
 class Image:
-    """
-    Represents a container image.
+    """Represents a container image.
 
     :param url: The image url. E.g. docker.io/fedora
     :param tag_override: (optional) A specific tag to use instead of
@@ -57,14 +57,31 @@ class Image:
     :param password: (optional) The private registry password
     :param auth_server: (optional) The host that the username and password are
                         meant for
+
+    :param response_cache (optional) A cache to store responses,
+    indexed by both etag and digest
     """
+
+    ACCEPT_HEADERS = {
+        'Accept':
+        'application/vnd.docker.distribution.manifest.v1+json,'
+        'application/vnd.docker.distribution.manifest.v2+json,'
+        'application/vnd.docker.distribution.manifest.v1+prettyjws,'
+    }
+
+    MAX_CACHE_ITEM_SIZE = 50*1024
+
     def __init__(self, url, tag_override=None, username=None, password=None,
-                 auth_server=None):
+                 auth_server=None, response_cache=None):
         image_data = self._parse_image_url(url)
         self.scheme = image_data['scheme']
         self.registry = image_data['registry']
         self.repository = image_data['repository']
         self.image = image_data['image']
+        if response_cache is None:
+            self.response_cache = {}
+        else:
+            self.response_cache = response_cache
 
         if tag_override is None:
             self.tag = image_data['tag']
@@ -331,17 +348,29 @@ class Image:
         _LOG.debug('[%s, %s]', str(self), msg)
         raise HTTPError(msg)
 
+    @classmethod
+    def _should_cache(cls, response):
+        """Returns whether to cache the response.
+
+        We cache responses with an etag that are not too large, to
+        protect the system from OOM
+
+        """
+        try:
+            return (response.ok and 'etag' in response.headers and
+                    int(response.headers['content-length']) <
+                    cls.MAX_CACHE_ITEM_SIZE)
+        except (KeyError, ValueError):
+            return False
+
     @retry(exceptions=(HTTPError, requests.ConnectionError), max_attempts=5)
     def _request_get(self, url):
-        # Try first without 'Authorization' header
-        headers = {
-            'Accept':
-                'application/vnd.docker.distribution.manifest.v1+json,'
-                'application/vnd.docker.distribution.manifest.v2+json,'
-                'application/vnd.docker.distribution.manifest.v1+prettyjws,'
-        }
+        # Try first without 'Authorization' header - copy to keep the
+        # headers available for more callers and to avoid modifying
+        # the class attribute
+        headers = self.ACCEPT_HEADERS.copy()
 
-        response = requests.get(url, headers=headers, auth=self.auth)
+        response = requests.head(url, headers=headers, auth=self.auth)
 
         # Unauthorized, meaning we have to acquire a token
         if response.status_code == 401:
@@ -353,9 +382,17 @@ class Image:
 
             # Try again, this time with the Authorization header
             headers['Authorization'] = self._get_auth(www_auth)
-            response = requests.get(url, headers=headers)
+            response = requests.head(url, headers=headers)
 
+        if 'etag' in response.headers:
+            with contextlib.suppress(KeyError):
+                return self.response_cache[response.headers['etag']]
+
+        response = requests.get(url, headers=headers, auth=self.auth)
         self._raise_for_status(response)
+        if self._should_cache(response):
+            self.response_cache[response.headers['etag']] = response
+
         return response
 
     @property
