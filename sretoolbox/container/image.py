@@ -16,6 +16,7 @@
 Abstractions around container images.
 """
 
+import collections
 import contextlib
 import json
 import logging
@@ -368,7 +369,7 @@ class Image:
         # Try first without 'Authorization' header - copy to keep the
         # headers available for more callers and to avoid modifying
         # the class attribute
-        headers = self.ACCEPT_HEADERS.copy()
+        headers = collections.ChainMap({}, self.ACCEPT_HEADERS)
 
         response = requests.head(url, headers=headers, auth=self.auth)
 
