@@ -370,7 +370,7 @@ class Image:
         # headers available for more callers and to avoid modifying
         # the class attribute
         headers = collections.ChainMap({}, self.ACCEPT_HEADERS)
-
+        auth = self.auth
         response = requests.head(url, headers=headers, auth=self.auth)
 
         # Unauthorized, meaning we have to acquire a token
@@ -384,12 +384,13 @@ class Image:
             # Try again, this time with the Authorization header
             headers['Authorization'] = self._get_auth(www_auth)
             response = requests.head(url, headers=headers)
+            auth = None
 
         if 'etag' in response.headers:
             with contextlib.suppress(KeyError):
                 return self.response_cache[response.headers['etag']]
 
-        response = requests.get(url, headers=headers, auth=self.auth)
+        response = requests.get(url, headers=headers, auth=auth)
         self._raise_for_status(response)
         if self._should_cache(response):
             self.response_cache[response.headers['etag']] = response
