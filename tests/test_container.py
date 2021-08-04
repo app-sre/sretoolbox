@@ -178,10 +178,13 @@ class TestContainer:
 @patch.object(requests, 'get')
 @patch.object(Image, '_parse_www_auth')
 @patch.object(Image, '_get_auth')
-class TestRequestGet:
+class TestRequestGetCached:
 
     def test_all_fine_no_etag(self, get_auth, parse_www_auth, get, head):
-        i = Image('docker://docker.io/library/memcached:latest')
+        i = Image(
+            'docker://docker.io/library/memcached:latest',
+            response_cache={}
+        )
         rs = requests.Response()
         rs.status_code = 200
         head.return_value = rs
@@ -198,7 +201,10 @@ class TestRequestGet:
         assert i.response_cache == {}
 
     def test_all_fine_etag_add(self, get_auth, parse_www_auth, get, head):
-        i = Image('docker://docker.io/library/memcached:latest')
+        i = Image(
+            'docker://docker.io/library/memcached:latest',
+            response_cache={}
+        )
         rs = requests.Response()
         rs.status_code = 200
         rs.headers['etag'] = 'anetag'

@@ -79,10 +79,7 @@ class Image:
         self.registry = image_data['registry']
         self.repository = image_data['repository']
         self.image = image_data['image']
-        if response_cache is None:
-            self.response_cache = {}
-        else:
-            self.response_cache = response_cache
+        self.response_cache = response_cache
 
         if tag_override is None:
             self.tag = image_data['tag']
@@ -371,7 +368,13 @@ class Image:
         # the class attribute
         headers = collections.ChainMap({}, self.ACCEPT_HEADERS)
         auth = self.auth
-        response = requests.head(url, headers=headers, auth=self.auth)
+
+        if self.response_cache is None:
+            method = requests.get
+        else:
+            method = requests.head
+
+        response = method(url, headers=headers, auth=self.auth)
 
         # Unauthorized, meaning we have to acquire a token
         if response.status_code == 401:
@@ -383,16 +386,18 @@ class Image:
 
             # Try again, this time with the Authorization header
             headers['Authorization'] = self._get_auth(www_auth)
-            response = requests.head(url, headers=headers)
-            auth = None
+            response = method(url, headers=headers)
+            self._raise_for_status(response)
+            if self.response_cache is None:
+                return response
 
-        if 'etag' in response.headers:
+        if self.response_cache is not None and 'etag' in response.headers:
             with contextlib.suppress(KeyError):
                 return self.response_cache[response.headers['etag']]
 
         response = requests.get(url, headers=headers, auth=auth)
         self._raise_for_status(response)
-        if self._should_cache(response):
+        if self.response_cache is not None and self._should_cache(response):
             self.response_cache[response.headers['etag']] = response
 
         return response
