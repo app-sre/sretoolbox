@@ -70,6 +70,8 @@ class Image:
         'application/vnd.docker.distribution.manifest.v1+prettyjws,'
     }
 
+    # Maximum size of requests we will store in cache to keep resource
+    # consumption under control
     MAX_CACHE_ITEM_SIZE = 50*1024
 
     def __init__(self, url, tag_override=None, username=None, password=None,
@@ -352,7 +354,6 @@ class Image:
 
         We cache responses with an etag that are not too large, to
         protect the system from OOM
-
         """
         try:
             return (response.ok and 'etag' in response.headers and
