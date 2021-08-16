@@ -58,13 +58,23 @@ class Image:
     :param auth_server: (optional) The host that the username and password are
                         meant for
     """
+
+    # 50KB is an arbitrary number, most manifests are on the order of
+    # 10-15KB, so 50KB gives us enough room for larger instances,
+    # while protecting us from OOM-ing too easily
+    MAX_CACHE_ITEM_SIZE = 50*1024
+
     def __init__(self, url, tag_override=None, username=None, password=None,
-                 auth_server=None):
+                 auth_server=None, response_cache=None):
         image_data = self._parse_image_url(url)
         self.scheme = image_data['scheme']
         self.registry = image_data['registry']
         self.repository = image_data['repository']
         self.image = image_data['image']
+        if response_cache is None:
+            self.response_cache = {}
+        else:
+            self.response_cache = response_cache
 
         if tag_override is None:
             self.tag = image_data['tag']
@@ -124,7 +134,25 @@ class Image:
         # NOTE(efried): At least for quay, this returns schemaVersion 1 by tag
         # and 2 by digest.
         url += f'/{self.image}/manifests/{reference}'
-        return self._request_get(url)
+        try:
+            rsp = self._request_get(url, requests.head)
+            return self.response_cache[rsp.headers['Docker-Content-Digest']]
+        except KeyError:
+            rsp = self._request_get(url)
+            if self._should_cache(rsp):
+                self.response_cache[rsp.headers['Docker-Content-Digest']] = rsp
+            return rsp
+
+    @classmethod
+    def _should_cache(cls, response):
+        try:
+            return (
+                'Docker-Content-Digest' in response.headers
+                and int(response.headers['content-length']) <
+                cls.MAX_CACHE_ITEM_SIZE
+            )
+        except (KeyError, ValueError):
+            return False
 
     def _get_tags(self):
         """
@@ -332,7 +360,7 @@ class Image:
         raise HTTPError(msg)
 
     @retry(exceptions=(HTTPError, requests.ConnectionError), max_attempts=5)
-    def _request_get(self, url):
+    def _request_get(self, url, method=requests.get):
         # Try first without 'Authorization' header
         headers = {
             'Accept':
@@ -341,7 +369,7 @@ class Image:
                 'application/vnd.docker.distribution.manifest.v1+prettyjws,'
         }
 
-        response = requests.get(url, headers=headers, auth=self.auth)
+        response = method(url, headers=headers, auth=self.auth)
 
         # Unauthorized, meaning we have to acquire a token
         if response.status_code == 401:
@@ -353,7 +381,7 @@ class Image:
 
             # Try again, this time with the Authorization header
             headers['Authorization'] = self._get_auth(www_auth)
-            response = requests.get(url, headers=headers)
+            response = method(url, headers=headers)
 
         self._raise_for_status(response)
         return response

@@ -11,8 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import requests
 
 import pytest
+
+from unittest.mock import patch
 
 from sretoolbox.container import Image
 
@@ -153,3 +156,54 @@ class TestContainer:
         with pytest.raises(Exception) as e:
             _ = image.url_tag
         assert e.typename == 'NoTagForImageByDigest'
+
+
+@patch.object(Image, '_request_get', spec=Image)
+@patch.object(Image, '_should_cache', spec=Image)
+class TestGetManifest:
+
+    def test_empty_cache_should_cache(self, should_cache, getter):
+        should_cache.return_value = True
+        i = Image(f"quay.io/foo/bar:latest", response_cache=None)
+        r = requests.Response()
+        r.status_code = 200
+        r.headers['Docker-Content-Digest'] = 'sha256:asha'
+        r._content = b'{"key": "value"}'
+        getter.return_value = r
+        m = i._get_manifest()
+        getter.assert_any_call(
+            "https://quay.io/v2/foo/bar/manifests/latest", requests.head
+        )
+        getter.assert_any_call("https://quay.io/v2/foo/bar/manifests/latest")
+        assert m == r
+        assert i.response_cache == {"sha256:asha": r}
+
+    def test_empty_cache_should_not_cache(self, should_cache, getter):
+        should_cache.return_value = False
+        i = Image(f"quay.io/foo/bar:latest", response_cache=None)
+        r = requests.Response()
+        r.status_code = 200
+        r.headers['Docker-Content-Digest'] = 'sha256:asha'
+        r._content = b'{"key": "value"}'
+        getter.return_value = r
+        m = i._get_manifest()
+        getter.assert_any_call(
+            "https://quay.io/v2/foo/bar/manifests/latest", requests.head
+        )
+        getter.assert_any_call("https://quay.io/v2/foo/bar/manifests/latest")
+        assert m == r
+        assert i.response_cache == {}
+
+    def test_already_cached(self, should_cache, getter):
+        r = requests.Response()
+        r.status_code = 200
+        r.headers['Docker-Content-Digest'] = 'sha256:asha'
+        r._content = b'{"key": "value"}'
+        cache = {"sha256:asha": r}
+        i = Image(f"quay.io/foo/bar:latest", response_cache=cache)
+        getter.return_value = r
+        m = i._get_manifest()
+        assert m == r
+        getter.assert_called_once_with(
+            "https://quay.io/v2/foo/bar/manifests/latest", requests.head
+        )
