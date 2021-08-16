@@ -70,11 +70,9 @@ class Image:
         'application/vnd.docker.distribution.manifest.v1+prettyjws,'
     }
 
-    # 50KB is an arbitrary number, most manifests
-    # are on the order of 10-15KB, so 50KB gives
-    # us enough room for larger instances, while
-    # protecting us from OOM-ing too easily
-    MAX_CACHE_ITEM_SIZE = 51200  # 50 * 1024
+    # Maximum size of requests we will store in cache to keep resource
+    # consumption under control
+    MAX_CACHE_ITEM_SIZE = 50*1024
 
     def __init__(self, url, tag_override=None, username=None, password=None,
                  auth_server=None, response_cache=None):
