@@ -164,7 +164,7 @@ class TestGetManifest:
 
     def test_empty_cache_should_cache(self, should_cache, getter):
         should_cache.return_value = True
-        i = Image(f"quay.io/foo/bar:latest", response_cache=None)
+        i = Image(f"quay.io/foo/bar:latest", response_cache={})
         r = requests.Response()
         r.status_code = 200
         r.headers['Docker-Content-Digest'] = 'sha256:asha'
@@ -180,7 +180,7 @@ class TestGetManifest:
 
     def test_empty_cache_should_not_cache(self, should_cache, getter):
         should_cache.return_value = False
-        i = Image(f"quay.io/foo/bar:latest", response_cache=None)
+        i = Image(f"quay.io/foo/bar:latest", response_cache={})
         r = requests.Response()
         r.status_code = 200
         r.headers['Docker-Content-Digest'] = 'sha256:asha'
@@ -207,3 +207,18 @@ class TestGetManifest:
         getter.assert_called_once_with(
             "https://quay.io/v2/foo/bar/manifests/latest", requests.head
         )
+        should_cache.assert_not_called()
+
+    def test_no_cache(self, should_cache, getter):
+        r = requests.Response()
+        r.status_code = 200
+        r.headers['Docker-Content-Digest'] = 'sha256:asha'
+        r._content = b'{"key": "value"}'
+        i = Image(f"quay.io/foo/bar:latest", response_cache=None)
+        getter.return_value = r
+        m = i._get_manifest()
+        assert m == r
+        getter.assert_called_once_with(
+            "https://quay.io/v2/foo/bar/manifests/latest"
+        )
+        should_cache.assert_not_called()

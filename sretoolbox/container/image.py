@@ -71,10 +71,7 @@ class Image:
         self.registry = image_data['registry']
         self.repository = image_data['repository']
         self.image = image_data['image']
-        if response_cache is None:
-            self.response_cache = {}
-        else:
-            self.response_cache = response_cache
+        self.response_cache = response_cache
 
         if tag_override is None:
             self.tag = image_data['tag']
@@ -134,6 +131,9 @@ class Image:
         # NOTE(efried): At least for quay, this returns schemaVersion 1 by tag
         # and 2 by digest.
         url += f'/{self.image}/manifests/{reference}'
+        if self.response_cache is None:
+            return self._request_get(url)
+
         try:
             rsp = self._request_get(url, requests.head)
             return self.response_cache[rsp.headers['Docker-Content-Digest']]
