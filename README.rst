@@ -48,7 +48,7 @@ Run the code checks and tests::
     $  make check
 
 Release
-------
+-------
 
 Edit the `VERSION` file and change the new version. Submit a pull
 request to master. When it is merged, create a tag and push it to
