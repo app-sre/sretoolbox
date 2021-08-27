@@ -15,7 +15,7 @@ import requests
 
 import pytest
 
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from sretoolbox.container import Image
 
@@ -229,3 +229,56 @@ class TestGetManifest:
             "https://quay.io/v2/foo/bar/manifests/latest"
         )
         should_cache.assert_not_called()
+
+
+@patch.object(Image, '_parse_www_auth')
+@patch.object(Image, '_get_auth')
+class TestRequestGet:
+    def test_username_and_password_ok(self, getauth, parseauth):
+        r = requests.Response()
+        r.status_code = 200
+        method = MagicMock(return_value=r)
+        i = Image("quay.io/foo/bar:latest", username="user", password="pass")
+        i._request_get.__wrapped__(i, "http://www.google.com", method=method)
+        method.assert_called_once()
+        c = method.call_args_list[0]
+
+        assert c[0] == ('http://www.google.com', )
+        assert 'Authorization' not in c[1]['headers']
+        assert c[1]['auth'] == i.auth
+        getauth.assert_not_called()
+        parseauth.assert_not_called()
+
+    def test_username_and_password_reauthenticate(self, getauth, parseauth):
+        r = requests.Response()
+        r.status_code = 401
+        r.headers['Www-Authenticate'] = 'something something'
+        gets = [r]
+        r = requests.Response()
+        r.status_code = 200
+        gets.append(r)
+        method = MagicMock(side_effect=gets)
+        r = requests.Response()
+        r.status_code = 200
+        i = Image("quay.io/foo/bar:latest", username="user", password="pass")
+        getauth.return_value = "anauthtoken"
+        parseauth.return_value = "aparsedauth"
+        i._request_get.__wrapped__(i, "http://www.google.com", method=method)
+        parseauth.assert_called_once_with('something something')
+        assert method.call_count == 2
+        assert i._auth_token == 'anauthtoken'
+
+    def test_persistent_failure(self, getauth, parseauth):
+        r = requests.Response()
+        r.status_code = 401
+        r.headers['Www-Authenticate'] = 'something something'
+        method = MagicMock(return_value=r)
+        r = requests.Response()
+        r.status_code = 200
+        i = Image("quay.io/foo/bar:latest", username="user", password="pass")
+        getauth.return_value = "anauthtoken"
+        parseauth.return_value = "aparsedauth"
+        with pytest.raises(requests.exceptions.HTTPError):
+            i._request_get.__wrapped__(i, "http://www.google.com", method=method)
+            getauth.assert_called_once()
+            parseauth.assert_called_once()
