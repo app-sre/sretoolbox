@@ -41,6 +41,7 @@ class NoTagForImageByDigest(Exception):
     Raised when the Image was constructed with a by-digest URL and an
     operation is attempted that requires a tag.
     """
+
     def __init__(self, image):
         super().__init__(
             f"Can't determine a unique tag for Image: {str(image)}")
@@ -65,7 +66,7 @@ class Image:
     MAX_CACHE_ITEM_SIZE = 50*1024
 
     def __init__(self, url, tag_override=None, username=None, password=None,
-                 auth_server=None, response_cache=None):
+                 auth_server=None, response_cache=None, auth_token=None):
         image_data = self._parse_image_url(url)
         self.scheme = image_data['scheme']
         self.registry = image_data['registry']
@@ -73,6 +74,7 @@ class Image:
         self.image = image_data['image']
         self.response_cache = response_cache
 
+        self.auth_token = auth_token
         if tag_override is None:
             self.tag = image_data['tag']
         else:
@@ -361,17 +363,23 @@ class Image:
 
     @retry(exceptions=(HTTPError, requests.ConnectionError), max_attempts=5)
     def _request_get(self, url, method=requests.get):
-        # Try first without 'Authorization' header
+        # Use any cached tokens, they may still be valid
         headers = {
             'Accept':
-                'application/vnd.docker.distribution.manifest.v1+json,'
-                'application/vnd.docker.distribution.manifest.v2+json,'
-                'application/vnd.docker.distribution.manifest.v1+prettyjws,'
+            'application/vnd.docker.distribution.manifest.v1+json,'
+            'application/vnd.docker.distribution.manifest.v2+json,'
+            'application/vnd.docker.distribution.manifest.v1+prettyjws,'
         }
 
-        response = method(url, headers=headers, auth=self.auth)
+        if self.auth_token:
+            headers['Authorization'] = self.auth_token
+            auth = None
+        else:
+            auth = self.auth
 
-        # Unauthorized, meaning we have to acquire a token
+        response = method(url, headers=headers, auth=auth)
+
+        # Unauthorized, meaning we have to acquire a new token
         if response.status_code == 401:
             auth_specs = response.headers.get('Www-Authenticate')
             if auth_specs is None:
@@ -379,8 +387,9 @@ class Image:
 
             www_auth = self._parse_www_auth(auth_specs)
 
-            # Try again, this time with the Authorization header
-            headers['Authorization'] = self._get_auth(www_auth)
+            # Try again, with the new Authorization header
+            self.auth_token = self._get_auth(www_auth)
+            headers['Authorization'] = self.auth_token
             response = method(url, headers=headers)
 
         self._raise_for_status(response)
@@ -467,7 +476,8 @@ class Image:
         return Image(url=str(self), tag_override=str(item),
                      username=self.username, password=self.password,
                      auth_server=self.auth_server,
-                     response_cache=self.response_cache)
+                     response_cache=self.response_cache,
+                     auth_token=self.auth_token)
 
     def __iter__(self):
         for tag in self.tags:
