@@ -466,7 +466,8 @@ class Image:
     def __getitem__(self, item):
         return Image(url=str(self), tag_override=str(item),
                      username=self.username, password=self.password,
-                     auth_server=self.auth_server)
+                     auth_server=self.auth_server,
+                     response_cache=self.response_cache)
 
     def __iter__(self):
         for tag in self.tags:
