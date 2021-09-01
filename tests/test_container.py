@@ -157,6 +157,13 @@ class TestContainer:
             _ = image.url_tag
         assert e.typename == 'NoTagForImageByDigest'
 
+    def test_getitem(self):
+        image = Image("quay.io/foo/bar:latest", response_cache={})
+        other = image['current']
+        assert image.response_cache is other.response_cache
+
+
+
 
 @patch.object(Image, '_request_get', spec=Image)
 @patch.object(Image, '_should_cache', spec=Image)
