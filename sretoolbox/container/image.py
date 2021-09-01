@@ -66,7 +66,7 @@ class Image:
     MAX_CACHE_ITEM_SIZE = 50*1024
 
     def __init__(self, url, tag_override=None, username=None, password=None,
-                 auth_server=None, response_cache=None):
+                 auth_server=None, response_cache=None, auth_token=None):
         image_data = self._parse_image_url(url)
         self.scheme = image_data['scheme']
         self.registry = image_data['registry']
@@ -74,7 +74,7 @@ class Image:
         self.image = image_data['image']
         self.response_cache = response_cache
 
-        self._auth_token = None
+        self.auth_token = auth_token
         if tag_override is None:
             self.tag = image_data['tag']
         else:
@@ -371,8 +371,8 @@ class Image:
             'application/vnd.docker.distribution.manifest.v1+prettyjws,'
         }
 
-        if self._auth_token:
-            headers['Authorization'] = self._auth_token
+        if self.auth_token:
+            headers['Authorization'] = self.auth_token
             auth = None
         else:
             auth = self.auth
@@ -388,8 +388,8 @@ class Image:
             www_auth = self._parse_www_auth(auth_specs)
 
             # Try again, with the new Authorization header
-            self._auth_token = self._get_auth(www_auth)
-            headers['Authorization'] = self._auth_token
+            self.auth_token = self._get_auth(www_auth)
+            headers['Authorization'] = self.auth_token
             response = method(url, headers=headers)
 
         self._raise_for_status(response)
@@ -476,7 +476,8 @@ class Image:
         return Image(url=str(self), tag_override=str(item),
                      username=self.username, password=self.password,
                      auth_server=self.auth_server,
-                     response_cache=self.response_cache)
+                     response_cache=self.response_cache,
+                     auth_token=self.auth_token)
 
     def __iter__(self):
         for tag in self.tags:

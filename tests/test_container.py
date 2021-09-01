@@ -158,11 +158,12 @@ class TestContainer:
         assert e.typename == 'NoTagForImageByDigest'
 
     def test_getitem(self):
-        image = Image("quay.io/foo/bar:latest", response_cache={})
+        image = Image("quay.io/foo/bar:latest", response_cache={},
+                      auth_token="atoken")
         other = image['current']
         assert image.response_cache is other.response_cache
-
-
+        assert other.auth_token is image.auth_token
+        assert other.tag == 'current'
 
 
 @patch.object(Image, '_request_get', spec=Image)
@@ -266,7 +267,7 @@ class TestRequestGet:
         i._request_get.__wrapped__(i, "http://www.google.com", method=method)
         parseauth.assert_called_once_with('something something')
         assert method.call_count == 2
-        assert i._auth_token == 'anauthtoken'
+        assert i.auth_token == 'anauthtoken'
 
     def test_persistent_failure(self, getauth, parseauth):
         r = requests.Response()
