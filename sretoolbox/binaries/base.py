@@ -18,18 +18,14 @@ Abstractions around system binaries.
 
 import logging
 import os
-
-from abc import ABCMeta
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 from collections import Counter
 from pathlib import Path
 
 import requests
-
 from semver import VersionInfo
 
 from sretoolbox.utils import run
-
 
 LOG = logging.getLogger(__name__)
 
@@ -53,21 +49,21 @@ class Binary(metaclass=ABCMeta):
     :type version: str
     :type download_path: Path or str
     """
-    binary_template = ''
-    download_url_template = ''
+
+    binary_template = ""
+    download_url_template = ""
 
     def __init__(self, version, download_path):
         # Making sure that the version contains
         # valid minor and patch elements
         counter = Counter(version)
-        if counter['.'] == 0:
-            version += '.0.0'
-        elif counter['.'] == 1:
-            version += '.0'
+        if counter["."] == 0:
+            version += ".0.0"
+        elif counter["."] == 1:
+            version += ".0"
 
         self.expected_version = VersionInfo.parse(version=version)
-        LOG.debug('Expected %s version: %s', self.binary,
-                  self.expected_version)
+        LOG.debug("Expected %s version: %s", self.binary, self.expected_version)
 
         self.download_path = Path(download_path)
 
@@ -84,41 +80,50 @@ class Binary(metaclass=ABCMeta):
         # No luck. Binary is not on the system and it also can't
         # be downloaded.
         if self._command is None:
-            raise CommandNotFoundError(f'Not able to find or download '
-                                       f'{self.binary} version '
-                                       f'{self.expected_version}')
+            raise CommandNotFoundError(
+                "Not able to find or download "
+                f"{self.binary} version "
+                f"{self.expected_version}"
+            )
 
         # Checking if we have the right version
         result = run(cmd=self.get_version_command())
         self._command_version = self.parse_version(version=result)
-        if not self._compare(expected=self.expected_version,
-                             actual=self._command_version):
+        if not self._compare(
+            expected=self.expected_version, actual=self._command_version
+        ):
 
             if downloaded:
                 # If even after download, the version doesn't match,
                 # we are done trying.
-                raise CommandNotFoundError(f'Downloaded version of '
-                                           f'{self.binary} did not match '
-                                           f'the expected version '
-                                           f'{self.expected_version}')
+                raise CommandNotFoundError(
+                    "Downloaded version of "
+                    f"{self.binary} did not match "
+                    "the expected version "
+                    f"{self.expected_version}"
+                )
 
             # Version doesn't match and we didn't try to download
             # so far. Downloading.
             downloaded_file = self._download()
             self._command = self.process_download(path=downloaded_file)
             if self._command is None:
-                raise CommandNotFoundError(f'Not able to download '
-                                           f'{self.binary}')
+                raise CommandNotFoundError(
+                    f"Not able to download {self.binary}"
+                )
 
             # Checking if we have the right version after download
             result = run(cmd=self.get_version_command())
             self._command_version = self.parse_version(version=result)
-            if not self._compare(expected=self.expected_version,
-                                 actual=self._command_version):
-                raise CommandNotFoundError(f'Downloaded version of '
-                                           f'{self.binary} did not match '
-                                           f'the expected version '
-                                           f'{self.expected_version}')
+            if not self._compare(
+                expected=self.expected_version, actual=self._command_version
+            ):
+                raise CommandNotFoundError(
+                    "Downloaded version of "
+                    f"{self.binary} did not match "
+                    "the expected version "
+                    f"{self.expected_version}"
+                )
 
     @property
     def command(self):
@@ -151,7 +156,7 @@ class Binary(metaclass=ABCMeta):
             minor=self.expected_version.minor,
             patch=self.expected_version.patch,
             prerelease=self.expected_version.prerelease,
-            build=self.expected_version.build
+            build=self.expected_version.build,
         )
 
     def run(self, *args):
@@ -181,9 +186,9 @@ class Binary(metaclass=ABCMeta):
             if value is None:
                 continue
             if actual_version_dict[item] != value:
-                LOG.debug('Version mismatch: %s != %s', expected, actual)
+                LOG.debug("Version mismatch: %s != %s", expected, actual)
                 return False
-        LOG.debug('Version match: %s == %s', expected, actual)
+        LOG.debug("Version match: %s == %s", expected, actual)
         return True
 
     def _get_command_path(self, cmd, check_exec=True):
@@ -200,9 +205,9 @@ class Binary(metaclass=ABCMeta):
         :rtype: string
         """
         bin_paths = [self.download_path]
-        os_path = os.environ.get('PATH')
+        os_path = os.environ.get("PATH")
         if os_path is not None:
-            bin_paths.extend([Path(item) for item in os_path.split(':')])
+            bin_paths.extend([Path(item) for item in os_path.split(":")])
 
         for dir_path in bin_paths:
             cmd_path = dir_path / cmd
@@ -210,7 +215,7 @@ class Binary(metaclass=ABCMeta):
                 if check_exec:
                     if not os.access(cmd_path, os.R_OK | os.X_OK):
                         continue
-                LOG.debug('Found %s', cmd_path)
+                LOG.debug("Found %s", cmd_path)
                 return str(cmd_path.resolve())
 
         return None
@@ -253,15 +258,16 @@ class Binary(metaclass=ABCMeta):
         :return: the command full path after downloaded
         :rtype: str or None
         """
-        LOG.debug('Downloading %s', self.download_url)
+        LOG.debug("Downloading %s", self.download_url)
         response = requests.get(self.download_url, allow_redirects=True)
         if response.status_code >= 300:
-            LOG.debug('Error downloading %s: %s', self.download_url,
-                      response.reason)
+            LOG.debug(
+                "Error downloading %s: %s", self.download_url, response.reason
+            )
             return None
 
         bin_path = self.download_path / self.binary
-        with open(bin_path, 'wb') as file_obj:
+        with open(bin_path, "wb") as file_obj:
             file_obj.write(response.content)
-        LOG.debug('Downloaded %s', bin_path)
+        LOG.debug("Downloaded %s", bin_path)
         return str(bin_path)
