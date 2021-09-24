@@ -326,7 +326,7 @@ class Image:
 
     @staticmethod
     def _parse_www_auth(value):
-        www_authenticate = dict()
+        www_authenticate = {}
         www_authenticate['scheme'], params = value.split(' ', 1)
 
         # According to the RFC6750, the scheme MUST be followed by

@@ -2,3 +2,5 @@ pyproject.toml
 .coverage
 *.egg-info/
 *.pyc
+.python-version
+.vscode
