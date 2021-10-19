@@ -17,6 +17,7 @@ Abstractions around the OC binary.
 """
 
 import os
+import platform
 
 import tarfile
 
@@ -30,11 +31,12 @@ class Oc(Binary):
     Defines the properties of OC.
     """
     binary_template = 'oc-{version}'
+    system = 'mac' if platform.system().lower() == 'darwin' else 'linux'
     download_url_template = ('https://mirror.openshift.com/pub/'
                              'openshift-v{major}/'
                              'clients/ocp/'
                              '{major}.{minor}.{patch}/'
-                             'openshift-client-linux-'
+                             f'openshift-client-{system}-'
                              '{major}.{minor}.{patch}.tar.gz')
 
     def get_version_command(self):
