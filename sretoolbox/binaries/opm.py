@@ -17,6 +17,7 @@ Abstractions around the OPM binary.
 """
 
 import os
+import platform
 
 from semver import VersionInfo
 from sretoolbox.binaries.base import Binary
@@ -27,10 +28,11 @@ class Opm(Binary):
     Defines the properties of OPM.
     """
     binary_template = 'opm-{version}'
+    system = platform.system().lower()
     download_url_template = ('https://github.com/operator-framework/'
                              'operator-registry/releases/download/'
                              'v{major}.{minor}.{patch}/'
-                             'linux-amd64-opm')
+                             f'{system}-amd64-opm')
 
     def get_version_command(self):
         """

@@ -17,6 +17,7 @@ Abstractions around the OperatorSDK binary.
 """
 
 import os
+import platform
 
 from semver import VersionInfo
 
@@ -28,10 +29,11 @@ class OperatorSDK(Binary):
     Defines the properties of OperatorSDK.
     """
     binary_template = 'operator-sdk-{version}'
+    system = platform.system().lower()
     download_url_template = ('https://github.com/operator-framework/'
                              'operator-sdk/releases/download/'
                              'v{major}.{minor}.{patch}/'
-                             'operator-sdk_linux_amd64')
+                             f'operator-sdk_{system}_amd64')
 
     def get_version_command(self):
         """
