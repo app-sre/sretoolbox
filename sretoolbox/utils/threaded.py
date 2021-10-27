@@ -21,27 +21,6 @@ import functools
 from multiprocessing.dummy import Pool as ThreadPool
 
 
-def full_traceback(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            msg = "{}\n\nOriginal {}".format(e, traceback.format_exc())
-            raise type(e)(msg)
-    return wrapper
-
-
-def catching_traceback(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            return e
-    return wrapper
-
-
 def run(func, iterable, thread_pool_size, return_exceptions=False, **kwargs):
     """run executes a function for each item in the input iterable.
     execution will be multithreaded according to the input
@@ -52,9 +31,9 @@ def run(func, iterable, thread_pool_size, return_exceptions=False, **kwargs):
     """
 
     if return_exceptions:
-        tracer = catching_traceback
+        tracer = _catching_traceback
     else:
-        tracer = full_traceback
+        tracer = _full_traceback
 
     func_partial = functools.partial(tracer(func), **kwargs)
 
@@ -67,9 +46,42 @@ def run(func, iterable, thread_pool_size, return_exceptions=False, **kwargs):
 
 
 def estimate_available_thread_pool_size(thread_pool_size, targets_len):
-    # if there are 20 threads and only 3 targets,
-    # each thread can use ~20/3 threads internally.
-    # if there are 20 threads and 100 targts,
-    # each thread can use 1 thread internally.
+    """estimates available thread pool size based when threading
+    is also used in nested functions (targets)
+
+    If there are 20 threads and only 3 targets,
+    each thread can use ~20/3 threads internally.
+    If there are 20 threads and 100 targts,
+    each thread can use 1 thread internally.
+
+    Args:
+        thread_pool_size (int): Thread pool size to use
+        targets_len (int): Number of nested threaded functions
+
+    Returns:
+        int: Available thread pool size
+    """
     available_thread_pool_size = int(thread_pool_size / targets_len)
     return max(available_thread_pool_size, 1)
+
+
+def _catching_traceback(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        # pylint: disable=broad-except
+        except Exception as details:
+            return details
+    return wrapper
+
+
+def _full_traceback(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as details:
+            msg = f"{str(details)}\n\nOriginal {traceback.format_exc()}"
+            raise type(details)(msg)
+    return wrapper

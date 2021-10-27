@@ -27,23 +27,23 @@ def raiser(*args, **kwargs):
 class TestWrappers(unittest.TestCase):
 
     def test_full_traceback_no_error(self):
-        f = threaded.full_traceback(identity)
+        f = threaded._full_traceback(identity)
 
         self.assertEqual(f(42), 42)
 
     def tet_full_traceback_exception(self):
-        f = threaded.full_traceback(raiser)
+        f = threaded._full_traceback(raiser)
 
         with self.assertRaises(Exception):
             f(42)
 
     def test_catching_traceback_no_error(self):
-        f = threaded.catching_traceback(identity)
+        f = threaded._catching_traceback(identity)
 
         self.assertEqual(f(42), 42)
 
     def test_catching_traceback_exception(self):
-        f = threaded.catching_traceback(raiser)
+        f = threaded._catching_traceback(raiser)
 
         rs = f(42)
         self.assertEqual(rs.args, ("Oh noes!", ))
