@@ -17,7 +17,7 @@ Abstractions around the mtcli binary.
 """
 
 import os
-import platform
+import tarfile
 
 from semver import VersionInfo
 
@@ -28,12 +28,13 @@ class Mtcli(Binary):
     """
     Defines the properties of mtcli.
     """
-    binary_template = 'mtcli-{version}'
-    system = platform.system().lower()
-    download_url_template = ('https://github.com/mt-sre/'
-                             'addon-metadata-operator/releases/download/'
-                             'v{major}.{minor}.{patch}/'
-                             f'mtcli_{system}_amd64')
+
+    binary_template = "mtcli-{version}"
+    download_url_template = (
+        "https://github.com/mt-sre/addon-metadata-operator/"
+        "releases/download/v{major}.{minor}.{patch}/"
+        "mtcli_{major}.{minor}.{patch}_Linux_x86_64.tar.gz"
+    )
 
     def get_version_command(self):
         """
@@ -42,7 +43,7 @@ class Mtcli(Binary):
         :return: version command
         :rtype: list
         """
-        return [self.command, 'version']
+        return [self.command, "version"]
 
     def parse_version(self, version):
         """
@@ -55,7 +56,9 @@ class Mtcli(Binary):
         :return: the parsed version as a VersionInfo object
         :rtype: VersionInfo
         """
-        mtcli_version = version.split('"')[1].split('v', 1)[1]
+        # find first comma
+        first_comma = version.find(",")
+        mtcli_version = version[first_comma - 5: first_comma]
         return VersionInfo.parse(version=mtcli_version)
 
     def process_download(self, path):
@@ -65,5 +68,20 @@ class Mtcli(Binary):
         :param path: The downloaded file path
         :return: The executable binary path.
         """
-        os.chmod(path, 0o777)
-        return path
+        # The downloaded file is actually a
+        # tgz. Renaming first.
+        tgz = f"{path}.tgz"
+        os.rename(path, tgz)
+
+        # Now we have to extract mtcli from the tgz to
+        # the download_path
+        with tarfile.open(tgz) as file_obj:
+            file_obj.extract("mtcli", path=self.download_path)
+        bin_path = f"{self.download_path}/mtcli"
+        mtcli_path = f"{self.download_path}/{self.binary}"
+        os.rename(bin_path, mtcli_path)
+
+        # Making it executable
+        os.chmod(mtcli_path, 0o777)
+
+        return mtcli_path
