@@ -32,11 +32,12 @@ class Mtcli(Binary):
 
     binary_template = "mtcli-{version}"
     system = platform.system()
+    machine = platform.machine()
     download_url_template = (
         "https://github.com/mt-sre/addon-metadata-operator/"
         "releases/download/v{major}.{minor}.{patch}/"
         "mtcli_{major}.{minor}.{patch}_"
-        f"{system}_x86_64.tar.gz"
+        f"{system}_{machine}.tar.gz"
     )
 
     def get_version_command(self):
