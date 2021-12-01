@@ -17,6 +17,7 @@ Abstractions around the mtcli binary.
 """
 
 import os
+import platform
 import tarfile
 
 from semver import VersionInfo
@@ -30,10 +31,13 @@ class Mtcli(Binary):
     """
 
     binary_template = "mtcli-{version}"
+    system = platform.system()
+    machine = platform.machine()
     download_url_template = (
         "https://github.com/mt-sre/addon-metadata-operator/"
         "releases/download/v{major}.{minor}.{patch}/"
-        "mtcli_{major}.{minor}.{patch}_Linux_x86_64.tar.gz"
+        "mtcli_{major}.{minor}.{patch}_"
+        f"{system}_{machine}.tar.gz"
     )
 
     def get_version_command(self):

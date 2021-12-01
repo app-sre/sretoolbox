@@ -256,9 +256,14 @@ class Binary(metaclass=ABCMeta):
         LOG.debug('Downloading %s', self.download_url)
         response = requests.get(self.download_url, allow_redirects=True)
         if response.status_code >= 300:
-            LOG.debug('Error downloading %s: %s', self.download_url,
-                      response.reason)
-            return None
+            if response.status_code == 404:
+                LOG.debug(
+                    "%s not found for the current system and architecture",
+                    self.binary,
+                )
+            raise requests.exceptions.HTTPError(
+                f"Error downloading {self.download_url}: {response.reason}"
+            )
 
         bin_path = self.download_path / self.binary
         with open(bin_path, 'wb') as file_obj:
