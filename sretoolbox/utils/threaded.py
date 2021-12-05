@@ -79,9 +79,5 @@ def _catching_traceback(func):
 def _full_traceback(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as details:
-            msg = f"{str(details)}\n\nOriginal {traceback.format_exc()}"
-            raise type(details)(msg)
+        return func(*args, **kwargs)
     return wrapper
