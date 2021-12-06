@@ -16,7 +16,6 @@
 Threading abstractions.
 """
 
-import traceback
 import functools
 from multiprocessing.dummy import Pool as ThreadPool
 
