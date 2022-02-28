@@ -368,7 +368,10 @@ class Image:
             'Accept':
             'application/vnd.docker.distribution.manifest.v1+json,'
             'application/vnd.docker.distribution.manifest.v2+json,'
+            'application/vnd.docker.distribution.manifest.list.v2+json,'
             'application/vnd.docker.distribution.manifest.v1+prettyjws,'
+            # Support OCI image format
+            'application/vnd.oci.image.manifest.v1+json,'
         }
 
         if self.auth_token:
