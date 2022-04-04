@@ -24,6 +24,10 @@ from sretoolbox.binaries import Mtcli, Oc, OperatorSDK, Opm
             "version": "0.0.0",
         },
         {
+            "instance": Mtcli,
+            "version": "0.10.0",
+        },
+        {
             "instance": Oc,
             "version": "4.6.1",
         },

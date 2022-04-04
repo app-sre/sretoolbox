@@ -18,6 +18,7 @@ Abstractions around the mtcli binary.
 
 import os
 import platform
+import re
 import tarfile
 
 from semver import VersionInfo
@@ -60,10 +61,8 @@ class Mtcli(Binary):
         :return: the parsed version as a VersionInfo object
         :rtype: VersionInfo
         """
-        # find first comma
-        first_comma = version.find(",")
-        mtcli_version = version[first_comma - 5: first_comma]
-        return VersionInfo.parse(version=mtcli_version)
+        match = re.search(r"\d+\.\d+\.\d+", version)
+        return VersionInfo.parse(version=match.group(0) if match else "")
 
     def process_download(self, path):
         """
