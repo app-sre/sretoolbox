@@ -1,7 +1,28 @@
-pyproject.toml
-.coverage
-*.egg-info/
-*.pyc
-.python-version
+##
+## General
+##
+.idea
+*.swo
+*.swp
 .vscode
 .venv
+.envrc
+
+##
+## Python
+##
+.coverage
+*.egg-info/
+*.egg
+.eggs/
+venv
+.venv
+build
+dist
+*.pyc
+*.pyo
+__pycache__/
+.pytest_cache/
+pyproject.toml
+Pipfile.lock
+.python-version
