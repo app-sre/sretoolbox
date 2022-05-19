@@ -58,6 +58,7 @@ class Image:
     :param password: (optional) The private registry password
     :param auth_server: (optional) The host that the username and password are
                         meant for
+    :param ssl_verify: (optional) Whether to verify the SSL certificate
     """
 
     # 50KB is an arbitrary number, most manifests are on the order of
@@ -66,13 +67,15 @@ class Image:
     MAX_CACHE_ITEM_SIZE = 50*1024
 
     def __init__(self, url, tag_override=None, username=None, password=None,
-                 auth_server=None, response_cache=None, auth_token=None):
+                 auth_server=None, response_cache=None, auth_token=None,
+                 ssl_verify=True):
         image_data = self._parse_image_url(url)
         self.scheme = image_data['scheme']
         self.registry = image_data['registry']
         self.repository = image_data['repository']
         self.image = image_data['image']
         self.response_cache = response_cache
+        self.ssl_verify = ssl_verify
 
         self.auth_token = auth_token
         if tag_override is None:
@@ -380,7 +383,8 @@ class Image:
         else:
             auth = self.auth
 
-        response = method(url, headers=headers, auth=auth)
+        response = method(url, headers=headers, auth=auth,
+                          verify=self.ssl_verify)
 
         # Unauthorized, meaning we have to acquire a new token
         if response.status_code == 401:
