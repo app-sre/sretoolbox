@@ -29,6 +29,10 @@ from sretoolbox.utils import retry
 
 _LOG = logging.getLogger(__name__)
 
+MANIFEST_MEDIA_TYPE = 'application/vnd.docker.distribution.manifest.v2+json'
+MANIFEST_LIST_MEDIA_TYPE = \
+    'application/vnd.docker.distribution.manifest.list.v2+json'
+
 
 class ImageComparisonError(Exception):
     """
@@ -454,9 +458,6 @@ class Image:
         return item in self.tags
 
     def __eq__(self, other):
-        # Two instances are considered equal if both of their
-        # manifests are accessible and first item of the 'history'
-        # (the most recent) is the same.
         try:
             manifest = self.manifest
             other_manifest = other.manifest
@@ -472,7 +473,21 @@ class Image:
         if manifest_version == 1:
             layers_key = 'fsLayers'
         else:
-            layers_key = 'layers'
+            manifest_media_type = manifest['mediaType']
+            other_manifest_media_type = other_manifest['mediaType']
+
+            if manifest_media_type != other_manifest_media_type:
+                return False
+
+            if manifest_media_type == MANIFEST_MEDIA_TYPE:
+                layers_key = 'layers'
+            elif manifest_media_type == MANIFEST_LIST_MEDIA_TYPE:
+                layers_key = 'manifests'
+            else:
+                raise ImageComparisonError(
+                    f"Found unsupported media type {manifest_media_type} "
+                    "while comparing"
+                )
 
         if manifest[layers_key] == other_manifest[layers_key]:
             return True
