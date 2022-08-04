@@ -473,8 +473,13 @@ class Image:
         if manifest_version == 1:
             layers_key = 'fsLayers'
         else:
-            manifest_media_type = manifest['mediaType']
-            other_manifest_media_type = other_manifest['mediaType']
+            try:
+                manifest_media_type = manifest['mediaType']
+                other_manifest_media_type = other_manifest['mediaType']
+            except KeyError as details:
+                raise ImageComparisonError(
+                    "Missing 'mediaType' in image manifest"
+                ) from details
 
             if manifest_media_type != other_manifest_media_type:
                 return False
