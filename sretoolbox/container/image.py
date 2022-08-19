@@ -29,9 +29,21 @@ from sretoolbox.utils import retry
 
 _LOG = logging.getLogger(__name__)
 
-MANIFEST_MEDIA_TYPE = 'application/vnd.docker.distribution.manifest.v2+json'
-MANIFEST_LIST_MEDIA_TYPE = \
+SCHEMA1_MANIFEST_MEDIA_TYPE = \
+    'application/vnd.docker.distribution.manifest.v1+json'
+SCHEMA1_SIGNED_MANIFEST_MEDIA_TYPE = \
+    'application/vnd.docker.distribution.manifest.v1+prettyjws'
+SCHEMA2_MANIFEST_MEDIA_TYPE = \
+    'application/vnd.docker.distribution.manifest.v2+json'
+SCHEMA2_MANIFEST_LIST_MEDIA_TYPE = \
     'application/vnd.docker.distribution.manifest.list.v2+json'
+OCI_MANIFEST_MEDIA_TYPE = 'application/vnd.oci.image.manifest.v1+json'
+OCI_IMAGE_INDEX_MEDIA_TYPE = 'application/vnd.oci.image.index.v1+json'
+
+SINGLE_ARCH_MEDIA_TYPES = [SCHEMA2_MANIFEST_MEDIA_TYPE,
+                           OCI_MANIFEST_MEDIA_TYPE]
+MULTI_ARCH_MEDIA_TYPES = [SCHEMA2_MANIFEST_LIST_MEDIA_TYPE,
+                          OCI_IMAGE_INDEX_MEDIA_TYPE]
 
 
 class ImageComparisonError(Exception):
@@ -113,18 +125,34 @@ class Image:
 
         self._cache_tags = None
         self._cache_manifest = None
+        self._cache_content_type = None
+
+    @property
+    def content_type(self):
+        """
+        Property to return the Content-Type header from the manifest retrieval.
+        It caches the result.
+        """
+        if self._cache_content_type is None:
+            _ = self.manifest
+
+        if self._cache_content_type is None:
+            raise HTTPError('Content-Type header not found.')
+
+        return self._cache_content_type
 
     @property
     def digest(self):
         """
-        Property to cache the digest returned by get_manifest()
+        Property to return the Docker-Content-Digest header from the manifest
+        retrieval. It caches the result.
         """
         if self._cache_digest is None:
-            manifest = self._get_manifest()
-            digest = manifest.headers.get('Docker-Content-Digest')
-            if digest is None:
-                raise HTTPError('Docker-Content-Digest header not found.')
-            self._cache_digest = digest
+            _ = self.manifest
+
+        if self._cache_digest is None:
+            raise HTTPError('Docker-Content-Digest header not found.')
+
         return self._cache_digest
 
     def _get_manifest(self):
@@ -212,11 +240,14 @@ class Image:
     @property
     def manifest(self):
         """
-        Property to cache the manifest returned but get_manifest()
+        Property to return the manifest. It caches the result.
         """
         if self._cache_manifest is None:
             manifest = self._get_manifest()
             self._cache_manifest = manifest.json()
+            self._cache_content_type = manifest.headers.get('Content-Type')
+            self._cache_digest = manifest.headers.get('Docker-Content-Digest')
+
         return self._cache_manifest
 
     def _get_auth(self, www_auth):
@@ -372,13 +403,14 @@ class Image:
     def _request_get(self, url, method=requests.get):
         # Use any cached tokens, they may still be valid
         headers = {
-            'Accept':
-            'application/vnd.docker.distribution.manifest.v1+json,'
-            'application/vnd.docker.distribution.manifest.v2+json,'
-            'application/vnd.docker.distribution.manifest.list.v2+json,'
-            'application/vnd.docker.distribution.manifest.v1+prettyjws,'
-            # Support OCI image format
-            'application/vnd.oci.image.manifest.v1+json,'
+            'Accept': ",".join([
+                SCHEMA1_MANIFEST_MEDIA_TYPE,
+                SCHEMA1_SIGNED_MANIFEST_MEDIA_TYPE,
+                SCHEMA2_MANIFEST_MEDIA_TYPE,
+                SCHEMA2_MANIFEST_LIST_MEDIA_TYPE,
+                OCI_MANIFEST_MEDIA_TYPE,
+                OCI_IMAGE_INDEX_MEDIA_TYPE,
+            ])
         }
 
         if self.auth_token:
@@ -473,19 +505,19 @@ class Image:
         if manifest_version == 1:
             layers_key = 'fsLayers'
         else:
-            manifest_media_type = manifest['mediaType']
-            other_manifest_media_type = other_manifest['mediaType']
+            manifest_content_type = self.content_type
+            other_manifest_content_type = other.content_type
 
-            if manifest_media_type != other_manifest_media_type:
+            if manifest_content_type != other_manifest_content_type:
                 return False
 
-            if manifest_media_type == MANIFEST_MEDIA_TYPE:
+            if manifest_content_type in SINGLE_ARCH_MEDIA_TYPES:
                 layers_key = 'layers'
-            elif manifest_media_type == MANIFEST_LIST_MEDIA_TYPE:
+            elif manifest_content_type in MULTI_ARCH_MEDIA_TYPES:
                 layers_key = 'manifests'
             else:
                 raise ImageComparisonError(
-                    f"Found unsupported media type {manifest_media_type} "
+                    f"Found unsupported content type {manifest_content_type} "
                     "while comparing"
                 )
 
