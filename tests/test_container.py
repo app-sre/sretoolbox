@@ -17,7 +17,7 @@ import pytest
 import requests
 from requests.exceptions import HTTPError
 
-from sretoolbox.container import Image
+from sretoolbox.container.image import Image, ImageContainsError
 
 TAG = ('a61f590')
 A_SHA = (
@@ -284,8 +284,8 @@ class TestRequestGet:
             getauth.assert_called_once()
             parseauth.assert_called_once()
 
-
-class TestImageComparision:
+class ImageMocks:
+    @classmethod
     @pytest.fixture
     def v1_image_mock(self, requests_mock):
         with open('tests/fixtures/manifests/v1-image.json') as f:
@@ -293,14 +293,18 @@ class TestImageComparision:
 
         requests_mock.get(
             'https://registry.io/v2/test/v1-image/manifests/latest',
+            headers={
+                'Content-Type':
+                    'application/vnd.docker.distribution.manifest.v1+json'
+            },
             content=manifest.encode(),
         )
-
         return {
             'mock': requests_mock,
             'url': 'docker://registry.io/test/v1-image:latest',
         }
 
+    @classmethod
     @pytest.fixture
     def v2_image_mock(self, requests_mock):
         with open('tests/fixtures/manifests/v2-image.json') as f:
@@ -308,8 +312,12 @@ class TestImageComparision:
 
         requests_mock.get(
             'https://registry.io/v2/test/v2-image/manifests/latest',
-            headers={'Content-Type':
-                'application/vnd.docker.distribution.manifest.v2+json'},
+            headers={
+                'Content-Type':
+                    'application/vnd.docker.distribution.manifest.v2+json',
+                'Docker-Content-Digest': 'sha256:8a22fe7cf283894b7b2a8fad9f950'
+                                         '2ad3260db4ee31e609f7ce20d06d88d93c7',
+            },
             content=manifest.encode(),
         )
 
@@ -318,6 +326,7 @@ class TestImageComparision:
             'url': 'docker://registry.io/test/v2-image:latest',
         }
 
+    @classmethod
     @pytest.fixture
     def v2_fat_image_mock(self, requests_mock):
         with open('tests/fixtures/manifests/v2-fat-image.json') as f:
@@ -335,6 +344,7 @@ class TestImageComparision:
             'url': 'docker://registry.io/test/v2-fat-image:latest'
         }
 
+    @classmethod
     @pytest.fixture
     def oci_image_mock(self, requests_mock):
         with open('tests/fixtures/manifests/oci-image.json') as f:
@@ -342,8 +352,12 @@ class TestImageComparision:
 
         requests_mock.get(
             'https://registry.io/v2/test/oci-image/manifests/latest',
-            headers={'Content-Type':
-                'application/vnd.oci.image.manifest.v1+json'},
+            headers={
+                'Content-Type':
+                    'application/vnd.oci.image.manifest.v1+json',
+                'Docker-Content-Digest': 'sha256:1712421fab5a88b1d2b722d0dc112'
+                                         '3148adc709a179e310e7bc0e3e9a775e834',
+            },
             content=manifest.encode(),
         )
 
@@ -352,7 +366,7 @@ class TestImageComparision:
             'url': 'docker://registry.io/test/oci-image:latest',
         }
 
-
+    @classmethod
     @pytest.fixture
     def oci_fat_image_mock(self, requests_mock):
         with open('tests/fixtures/manifests/oci-fat-image.json') as f:
@@ -368,6 +382,51 @@ class TestImageComparision:
             'mock': requests_mock,
             'url': 'docker://registry.io/test/oci-fat-image:latest',
         }
+
+    @classmethod
+    @pytest.fixture
+    def no_headers_image_mock(self, requests_mock):
+        with open('tests/fixtures/manifests/v2-image.json') as f:
+            manifest = f.read()
+
+        requests_mock.get(
+            'https://registry.io/v2/test/image/manifests/latest',
+            content=manifest.encode(),
+        )
+
+        return {
+            'mock': requests_mock,
+            'url': 'docker://registry.io/test/image:latest',
+        }
+
+    @classmethod
+    @pytest.fixture
+    def image_with_digest_mock(self, requests_mock):
+        with open('tests/fixtures/manifests/v2-image.json') as f:
+            manifest = f.read()
+
+        requests_mock.get(
+            f'https://registry.io/v2/test/image/manifests/{A_SHA}',
+            headers={
+                'Content-Type':
+                    'application/vnd.docker.distribution.manifest.v2+json',
+                'Docker-Content-Digest': f'sha256:{A_SHA}'
+            },
+            content=manifest.encode(),
+        )
+
+        return {
+            'mock': requests_mock,
+            'url': f'docker://registry.io/test/image@{A_SHA}',
+        }
+
+
+class TestImageComparison:
+    v1_image_mock = ImageMocks.v1_image_mock
+    v2_image_mock = ImageMocks.v2_image_mock
+    v2_fat_image_mock = ImageMocks.v2_fat_image_mock
+    oci_image_mock = ImageMocks.oci_image_mock
+    oci_fat_image_mock = ImageMocks.oci_fat_image_mock
 
     def test_v1_image_comparisons(self,
                                   v1_image_mock,
@@ -462,51 +521,9 @@ class TestImageComparision:
 
 
 class TestManifestAccessors:
-    @pytest.fixture
-    def image_mock(self, requests_mock):
-        with open('tests/fixtures/manifests/v2-image.json') as f:
-            manifest = f.read()
-
-        requests_mock.get(
-            'https://registry.io/v2/test/image/manifests/latest',
-            headers={
-                'Content-Type': \
-                    'application/vnd.docker.distribution.manifest.v2+json',
-                'Docker-Content-Digest': 'sha256:xxxx',
-            },
-            content=manifest.encode(),
-        )
-
-        return {
-            'mock': requests_mock,
-            'url': 'docker://registry.io/test/image:latest',
-        }
-
-    @pytest.fixture
-    def no_headers_image_mock(self, requests_mock):
-        with open('tests/fixtures/manifests/v2-image.json') as f:
-            manifest = f.read()
-
-        requests_mock.get(
-            'https://registry.io/v2/test/image/manifests/latest',
-            content=manifest.encode(),
-        )
-
-        return {
-            'mock': requests_mock,
-            'url': 'docker://registry.io/test/image:latest',
-        }
-
-    @pytest.fixture
-    def image_with_digest_mock(self, requests_mock):
-        requests_mock.get(
-            'https://registry.io/v2/test/image/manifests/latest',
-        )
-
-        return {
-            'mock': requests_mock,
-            'url': f'docker://registry.io/test/image@{A_SHA}',
-        }
+    image_mock = ImageMocks.v2_image_mock
+    no_headers_image_mock = ImageMocks.no_headers_image_mock
+    image_with_digest_mock = ImageMocks.image_with_digest_mock
 
     def test_no_content_type(self, no_headers_image_mock):
         image = Image(no_headers_image_mock['url'])
@@ -555,3 +572,63 @@ class TestManifestAccessors:
         image = Image(image_with_digest_mock['url'])
         _ = image.digest
         assert image_with_digest_mock['mock'].call_count == 0
+
+
+class TestImageContains:
+    v1_image_mock = ImageMocks.v1_image_mock
+    v2_image_mock = ImageMocks.v2_image_mock
+    v2_fat_image_mock = ImageMocks.v2_fat_image_mock
+    oci_image_mock = ImageMocks.oci_image_mock
+    oci_fat_image_mock = ImageMocks.oci_fat_image_mock
+    v2_other_image_mock = ImageMocks.image_with_digest_mock
+
+    def test_v2_image_contains(self, v2_image_mock, v2_fat_image_mock):
+        v2_image = Image(v2_image_mock['url'])
+        v2_fat_image = Image(v2_fat_image_mock['url'])
+        assert v2_image in v2_fat_image
+
+    def test_oci_image_contains(self, oci_image_mock, oci_fat_image_mock):
+        oci_image = Image(oci_image_mock['url'])
+        oci_fat_image = Image(oci_fat_image_mock['url'])
+        assert oci_image in oci_fat_image
+
+    def test_image_does_not_contain(self,
+                                    v2_other_image_mock,
+                                    v2_fat_image_mock):
+        image = Image(v2_other_image_mock['url'])
+        fat_image = Image(v2_fat_image_mock['url'])
+        assert image not in fat_image
+
+    def test_bad_contains_member(self,
+                                 v1_image_mock,
+                                 v2_fat_image_mock,
+                                 oci_fat_image_mock):
+        v1_image = Image(v1_image_mock['url'])
+        v2_fat_image = Image(v2_fat_image_mock['url'])
+        oci_fat_image = Image(oci_fat_image_mock['url'])
+
+        with pytest.raises(ImageContainsError) as e:
+            v1_image in v2_fat_image
+
+        with pytest.raises(ImageContainsError) as e:
+            v2_fat_image in v2_fat_image
+
+        with pytest.raises(ImageContainsError) as e:
+            oci_fat_image in v2_fat_image
+
+    def test_bad_contains_collection(self,
+                                     v1_image_mock,
+                                     v2_image_mock,
+                                     oci_image_mock):
+        v1_image = Image(v1_image_mock['url'])
+        v2_image = Image(v2_image_mock['url'])
+        oci_image = Image(oci_image_mock['url'])
+
+        with pytest.raises(ImageContainsError) as e:
+            v2_image in v1_image
+
+        with pytest.raises(ImageContainsError) as e:
+            v2_image in v2_image
+
+        with pytest.raises(ImageContainsError) as e:
+            v2_image in oci_image

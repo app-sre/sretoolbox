@@ -4,25 +4,22 @@
   "manifests": [
     {
       "mediaType": "application/vnd.oci.image.manifest.v1+json",
-      "size": 7143,
-      "digest": "sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f",
+      "digest": "sha256:b0f80ec29230f2cc3e73e2054a984a9766a5cfe4eeb3c3e17b24eb5b564b22eb",
+      "size": 626,
       "platform": {
-        "architecture": "ppc64le",
-        "os": "linux"
+        "architecture": "arm64",
+        "os": "linux",
+        "variant": "v8"
       }
     },
     {
       "mediaType": "application/vnd.oci.image.manifest.v1+json",
-      "size": 7682,
-      "digest": "sha256:5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270",
+      "digest": "sha256:1712421fab5a88b1d2b722d0dc1123148adc709a179e310e7bc0e3e9a775e834",
+      "size": 626,
       "platform": {
         "architecture": "amd64",
         "os": "linux"
       }
     }
-  ],
-  "annotations": {
-    "com.example.key1": "value1",
-    "com.example.key2": "value2"
-  }
+  ]
 }

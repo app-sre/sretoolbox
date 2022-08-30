@@ -52,6 +52,12 @@ class ImageComparisonError(Exception):
     """
 
 
+class ImageContainsError(Exception):
+    """
+    Used when the determining if one image contains other is not possible.
+    """
+
+
 class NoTagForImageByDigest(Exception):
     """
     Raised when the Image was constructed with a by-digest URL and an
@@ -549,3 +555,22 @@ class Image:
         else:
             url = self.url_tag
         return f'{self.scheme}{url}'
+
+    def __contains__(self, item):
+        if self.content_type not in MULTI_ARCH_MEDIA_TYPES:
+            raise ImageContainsError(
+                "Unsupported image content type in collection: "
+                f"'{item.content_type}'"
+            )
+
+        if item.content_type not in SINGLE_ARCH_MEDIA_TYPES:
+            raise ImageContainsError(
+                "Unsupported image content type in member: "
+                f"'{item.content_type}'"
+            )
+
+        for manifest in self.manifest['manifests']:
+            if manifest['digest'] == item.digest:
+                return True
+
+        return False
