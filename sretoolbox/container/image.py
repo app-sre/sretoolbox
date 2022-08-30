@@ -52,6 +52,12 @@ class ImageComparisonError(Exception):
     """
 
 
+class ImageContainsError(Exception):
+    """
+    Used when the determining if one image contains other is not possible.
+    """
+
+
 class NoTagForImageByDigest(Exception):
     """
     Raised when the Image was constructed with a by-digest URL and an
@@ -236,6 +242,36 @@ class Image:
             if layer not in self.manifest['fsLayers']:
                 return False
         return True
+
+    def is_part_of(self, other):
+        """
+        Checks if this single-arch image is part of the given multi-arch
+        image
+
+        :param other: The multi-arch image to check against
+        :type other: Image
+        :raises ImageContainsError: if this image is not a single-arch
+             image or other is not a multi-arch image
+        :return: True if this single-arch image is part of the other
+        :rtype: bool
+        """
+        if self.content_type not in SINGLE_ARCH_MEDIA_TYPES:
+            raise ImageContainsError(
+                f"Unsupported image content type in {self}: "
+                f"'{self.content_type}'"
+            )
+
+        if other.content_type not in MULTI_ARCH_MEDIA_TYPES:
+            raise ImageContainsError(
+                f"Unsupported image content type in {other}: "
+                f"'{other.content_type}'"
+            )
+
+        for manifest in other.manifest['manifests']:
+            if manifest['digest'] == self.digest:
+                return True
+
+        return False
 
     @property
     def manifest(self):
