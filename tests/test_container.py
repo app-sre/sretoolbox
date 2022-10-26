@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from unittest.mock import patch, MagicMock
+from http import HTTPStatus
 
 import pytest
 import requests
@@ -166,72 +167,6 @@ class TestContainer:
         assert other.tag == 'current'
 
 
-@patch.object(Image, '_request_get', spec=Image)
-@patch.object(Image, '_should_cache', spec=Image)
-class TestGetManifest:
-
-    def test_empty_cache_should_cache(self, should_cache, getter):
-        should_cache.return_value = True
-        i = Image(f"quay.io/foo/bar:latest", response_cache={})
-        r = requests.Response()
-        r.status_code = 200
-        r.headers['Docker-Content-Digest'] = 'sha256:asha'
-        r._content = b'{"key": "value"}'
-        getter.return_value = r
-        m = i._get_manifest()
-        getter.assert_any_call(
-            "https://quay.io/v2/foo/bar/manifests/latest", requests.head
-        )
-        getter.assert_any_call("https://quay.io/v2/foo/bar/manifests/latest")
-        assert m == r
-        assert i.response_cache == {"sha256:asha": r}
-
-    def test_empty_cache_should_not_cache(self, should_cache, getter):
-        should_cache.return_value = False
-        i = Image(f"quay.io/foo/bar:latest", response_cache={})
-        r = requests.Response()
-        r.status_code = 200
-        r.headers['Docker-Content-Digest'] = 'sha256:asha'
-        r._content = b'{"key": "value"}'
-        getter.return_value = r
-        m = i._get_manifest()
-        getter.assert_any_call(
-            "https://quay.io/v2/foo/bar/manifests/latest", requests.head
-        )
-        getter.assert_any_call("https://quay.io/v2/foo/bar/manifests/latest")
-        assert m == r
-        assert i.response_cache == {}
-
-    def test_already_cached(self, should_cache, getter):
-        r = requests.Response()
-        r.status_code = 200
-        r.headers['Docker-Content-Digest'] = 'sha256:asha'
-        r._content = b'{"key": "value"}'
-        cache = {"sha256:asha": r}
-        i = Image(f"quay.io/foo/bar:latest", response_cache=cache)
-        getter.return_value = r
-        m = i._get_manifest()
-        assert m == r
-        getter.assert_called_once_with(
-            "https://quay.io/v2/foo/bar/manifests/latest", requests.head
-        )
-        should_cache.assert_not_called()
-
-    def test_no_cache(self, should_cache, getter):
-        r = requests.Response()
-        r.status_code = 200
-        r.headers['Docker-Content-Digest'] = 'sha256:asha'
-        r._content = b'{"key": "value"}'
-        i = Image(f"quay.io/foo/bar:latest", response_cache=None)
-        getter.return_value = r
-        m = i._get_manifest()
-        assert m == r
-        getter.assert_called_once_with(
-            "https://quay.io/v2/foo/bar/manifests/latest"
-        )
-        should_cache.assert_not_called()
-
-
 @patch.object(Image, '_parse_www_auth')
 @patch.object(Image, '_get_auth')
 class TestRequestGet:
@@ -240,7 +175,7 @@ class TestRequestGet:
         r.status_code = 200
         method = MagicMock(return_value=r)
         i = Image("quay.io/foo/bar:latest", username="user", password="pass")
-        i._request_get.__wrapped__(i, "http://www.google.com", method=method)
+        i._do_request.__wrapped__(i, "http://www.google.com", method=method)
         method.assert_called_once()
         c = method.call_args_list[0]
 
@@ -264,7 +199,7 @@ class TestRequestGet:
         i = Image("quay.io/foo/bar:latest", username="user", password="pass")
         getauth.return_value = "anauthtoken"
         parseauth.return_value = "aparsedauth"
-        i._request_get.__wrapped__(i, "http://www.google.com", method=method)
+        i._do_request.__wrapped__(i, "http://www.google.com", method=method)
         parseauth.assert_called_once_with('something something')
         assert method.call_count == 2
         assert i.auth_token == 'anauthtoken'
@@ -280,7 +215,7 @@ class TestRequestGet:
         getauth.return_value = "anauthtoken"
         parseauth.return_value = "aparsedauth"
         with pytest.raises(requests.exceptions.HTTPError):
-            i._request_get.__wrapped__(i, "http://www.google.com", method=method)
+            i._do_request.__wrapped__(i, "http://www.google.com", method=method)
             getauth.assert_called_once()
             parseauth.assert_called_once()
 
@@ -419,6 +354,146 @@ class ImageMocks:
             'mock': requests_mock,
             'url': f'docker://registry.io/test/image@{A_SHA}',
         }
+
+    @classmethod
+    @pytest.fixture
+    def dockerhub_image_mock(self, requests_mock):
+        with open('tests/fixtures/manifests/v2-image.json') as f:
+            manifest = f.read()
+
+        manifest_url = 'https://registry-1.docker.io/v2/test/image/manifests/latest'
+        headers = {
+            'Content-Type':
+                'application/vnd.docker.distribution.manifest.v2+json',
+            'Docker-Content-Digest': 'sha256:8a22fe7cf283894b7b2a8fad9f950'
+                                     '2ad3260db4ee31e609f7ce20d06d88d93c7',
+        }
+
+        requests_mock.get(
+            manifest_url,
+            headers=headers,
+            content=manifest.encode(),
+        )
+
+        requests_mock.head(manifest_url, headers=headers)
+
+        return {
+            'mock': requests_mock,
+            'url': 'docker://docker.io/test/image:latest',
+            'manifest_url': manifest_url,
+        }
+
+    @classmethod
+    @pytest.fixture
+    def redhat_registry_image_mock(self, requests_mock):
+        with open('tests/fixtures/manifests/ubi8-python39-manifest.json') as f:
+            manifest = f.read()
+
+        manifest_url = (
+            'https://registry.access.redhat.com/'
+            'v2/ubi8/python-39/manifests/latest'
+        )
+
+        headers = {
+            'Content-Type':
+                'application/vnd.docker.distribution.manifest.list.v2+json',
+            'ETag': '"672c5deca9a237fbc99de2992de0f178:1666889119.378372"',
+            'Last-Modified': 'Thu, 27 Oct 2022 15:33:48 GMT',
+        }
+
+        requests_mock.get(
+            manifest_url,
+            [
+                {
+                    'headers': headers,
+                    'content': manifest.encode(),
+                    'status_code': HTTPStatus.OK,
+                },
+                {
+                    'headers': headers,
+                    'content': manifest.encode(),
+                    'status_code': HTTPStatus.NOT_MODIFIED,
+                },
+            ]
+        )
+
+        return {
+            'mock': requests_mock,
+            'url': 'docker://registry.access.redhat.com/ubi8/python-39',
+            'manifest_url': manifest_url,
+        }
+
+class TestImageManifest:
+    dockerhub_image_mock = ImageMocks.dockerhub_image_mock
+    redhat_registry_image_mock = ImageMocks.redhat_registry_image_mock
+
+    def test_dockerhub_manifest_unchanged(self, dockerhub_image_mock):
+        cache = {}
+        token = "Bearer thisIsOneToken"
+        i1 = Image(dockerhub_image_mock['url'], response_cache=cache, auth_token=token)
+        m1 = i1.manifest
+
+        assert cache
+        assert dockerhub_image_mock['mock'].call_count == 1
+
+        i2 = Image(dockerhub_image_mock['url'], response_cache=cache, auth_token=token)
+        m2 = i2.manifest
+
+        assert m1 == m2
+        assert dockerhub_image_mock['mock'].call_count == 2
+
+    def test_conditional_manifest_unchanged(self, redhat_registry_image_mock):
+        cache = {}
+        i1 = Image(redhat_registry_image_mock['url'], response_cache=cache)
+        m1 = i1.manifest
+
+        assert cache
+        assert redhat_registry_image_mock['mock'].call_count == 1
+
+        i2 = Image(redhat_registry_image_mock['url'], response_cache=cache)
+        m2 = i2.manifest
+
+        assert m1 == m2
+        assert redhat_registry_image_mock['mock'].call_count == 2
+
+    def test_dockerhub_manifest_changed(self, dockerhub_image_mock):
+        rsp = requests.Response()
+        rsp.headers = {'Docker-Content-Digest': 'sha256:abc'}
+        username = "username"
+        key = (dockerhub_image_mock['manifest_url'], username)
+        cache = {key: rsp}
+
+        i = Image(
+            dockerhub_image_mock['url'],
+            response_cache=cache,
+            username=username,
+            password="password"
+        )
+        _ = i.manifest
+
+        assert cache[key] != rsp
+        assert dockerhub_image_mock['mock'].call_count == 2
+
+    def test_conditional_manifest_changed(self, redhat_registry_image_mock):
+        rsp = requests.Response()
+        rsp.headers = {
+            'ETag': '"57255d4ca9aa3afba99de2992de0f178:1556889119.378372"',
+            'Last-Modified': 'Thu, 23 Oct 2022 15:33:48 GMT',
+        }
+        username = "username"
+        key = (redhat_registry_image_mock['manifest_url'], username)
+        cache = {key: rsp}
+
+        i = Image(
+            redhat_registry_image_mock['url'],
+            response_cache=cache,
+            username=username,
+            password="password"
+        )
+        _ = i.manifest
+
+        assert cache[key] != rsp
+        assert redhat_registry_image_mock['mock'].call_count == 1
 
 
 class TestImageComparison:

@@ -19,6 +19,7 @@ Abstractions around container images.
 import json
 import logging
 import re
+from http import HTTPStatus
 
 import requests
 
@@ -80,13 +81,19 @@ class Image:
     :param password: (optional) The private registry password
     :param auth_server: (optional) The host that the username and password are
                         meant for
+    :param response_cache: (optional) Provide a response cache that acts
+                           as a dict
     :param ssl_verify: (optional) Whether to verify the SSL certificate
     """
 
-    # 50KB is an arbitrary number, most manifests are on the order of
-    # 10-15KB, so 50KB gives us enough room for larger instances,
-    # while protecting us from OOM-ing too easily
-    MAX_CACHE_ITEM_SIZE = 50*1024
+    # This is a method dispatcher to handle how to handle responses that are
+    # already present in the response_cache
+    _HANDLE_RESPONSE_CACHE_METHODS = {
+        "docker.io": "_handle_docker_content_digest",
+        "quay.io": "_handle_docker_content_digest",
+        "gcr.io": "_handle_docker_content_digest",
+        "registry.access.redhat.com": "_handle_conditional_request",
+    }
 
     def __init__(self, url, tag_override=None, username=None, password=None,
                  auth_server=None, response_cache=None, auth_token=None,
@@ -133,6 +140,11 @@ class Image:
         self._cache_manifest = None
         self._cache_content_type = None
 
+    def _can_response_be_cached(self):
+        # Determines if we have a method to handle response cache entries for
+        # the given registry
+        return self.registry in self._HANDLE_RESPONSE_CACHE_METHODS
+
     @property
     def content_type(self):
         """
@@ -161,10 +173,14 @@ class Image:
 
         return self._cache_digest
 
+    def _get_cache_key(self, url):
+        # Returns the cache key. It uses the username as entries in the cache
+        # may have been added by a different user with different permissions.
+        return (url, self.username)
+
     def _get_manifest(self):
-        """
-        Goes to the internet to retrieve the image manifest.
-        """
+        # Retrieve the image manifest from the internet or from the response
+        # cache if it exists.
         url = f'{self.registry_api}/v2'
         if self.repository is not None:
             url += f'/{self.repository}'
@@ -174,28 +190,22 @@ class Image:
         # NOTE(efried): At least for quay, this returns schemaVersion 1 by tag
         # and 2 by digest.
         url += f'/{self.image}/manifests/{reference}'
-        if self.response_cache is None:
-            return self._request_get(url)
 
-        try:
-            rsp = self._request_get(url, requests.head)
-            return self.response_cache[rsp.headers['Docker-Content-Digest']]
-        except KeyError:
-            rsp = self._request_get(url)
-            if self._should_cache(rsp):
-                self.response_cache[rsp.headers['Docker-Content-Digest']] = rsp
-            return rsp
+        if self.response_cache is None or not self._can_response_be_cached():
+            return self._do_request(url)
 
-    @classmethod
-    def _should_cache(cls, response):
-        try:
-            return (
-                'Docker-Content-Digest' in response.headers
-                and int(response.headers['content-length']) <
-                cls.MAX_CACHE_ITEM_SIZE
-            )
-        except (KeyError, ValueError):
-            return False
+        key = self._get_cache_key(url)
+        if key in self.response_cache:
+            # We use a dispatch table to handle how different registries handle
+            # responses that are already present in the response cache. We will
+            # favor proper conditional requests if the registry supports it.
+            self.response_cache[key] = getattr(
+                self, self._HANDLE_RESPONSE_CACHE_METHODS[self.registry]
+            )(url)
+        else:
+            self.response_cache[key] = self._do_request(url)
+
+        return self.response_cache[key]
 
     def _get_tags(self):
         """
@@ -208,7 +218,7 @@ class Image:
             url += f'/{self.repository}'
         url += f'/{self.image}/tags/list?n={tags_per_page}'
 
-        response = self._request_get(url)
+        response = self._do_request(url)
         tags = all_tags = response.json()['tags']
 
         # Tags are paginated
@@ -221,12 +231,53 @@ class Image:
                 url = next_page["url"]
             else:
                 url = f'{self.registry_api}{next_page["url"]}'
-            response = self._request_get(url)
+            response = self._do_request(url)
 
             tags = response.json()['tags']
             all_tags.extend(tags)
 
         return all_tags
+
+    def _handle_conditional_request(self, url):
+        # Handle response cache entries using conditional requests.
+        headers = {}
+        key = self._get_cache_key(url)
+        cached_response = self.response_cache[key]
+
+        etag = cached_response.headers.get("ETag")
+        if etag is not None:
+            headers["If-None-Match"] = etag
+
+        last_mod = cached_response.headers.get("Last-Modified")
+        if last_mod is not None:
+            headers["If-Modified-Since"] = last_mod
+
+        rsp = self._do_request(url, headers=headers)
+
+        if rsp.status_code == HTTPStatus.NOT_MODIFIED:
+            return cached_response
+
+        return rsp
+
+    def _handle_docker_content_digest(self, url):
+        # Handle response cache entries using Docker-Content-Digest header.
+        # This method has been inspired by DockerHub, which doesn't support
+        # proper conditional requests but doesn't count HEAD requests towards
+        # quota. See https://docs.docker.com/docker-hub/download-rate-limit/
+        # to have more details.
+        key = self._get_cache_key(url)
+        cached_response = self.response_cache[key]
+        header = "Docker-Content-Digest"
+
+        rsp = self._do_request(url, requests.head)
+
+        if header not in rsp.headers:
+            return self._do_request(url)
+
+        if rsp.headers.get(header) != cached_response.headers.get(header):
+            return self._do_request(url)
+
+        return cached_response
 
     def is_from(self, other):
         """
@@ -436,9 +487,9 @@ class Image:
         raise HTTPError(msg)
 
     @retry(exceptions=(HTTPError, requests.ConnectionError), max_attempts=5)
-    def _request_get(self, url, method=requests.get):
+    def _do_request(self, url, method=requests.get, headers=None):
         # Use any cached tokens, they may still be valid
-        headers = {
+        request_headers = {
             'Accept': ",".join([
                 SCHEMA1_MANIFEST_MEDIA_TYPE,
                 SCHEMA1_SIGNED_MANIFEST_MEDIA_TYPE,
@@ -449,13 +500,16 @@ class Image:
             ])
         }
 
+        if headers:
+            request_headers.update(headers)
+
         if self.auth_token:
-            headers['Authorization'] = self.auth_token
+            request_headers['Authorization'] = self.auth_token
             auth = None
         else:
             auth = self.auth
 
-        response = method(url, headers=headers, auth=auth,
+        response = method(url, headers=request_headers, auth=auth,
                           verify=self.ssl_verify)
 
         # Unauthorized, meaning we have to acquire a new token
@@ -468,8 +522,8 @@ class Image:
 
             # Try again, with the new Authorization header
             self.auth_token = self._get_auth(www_auth)
-            headers['Authorization'] = self.auth_token
-            response = method(url, headers=headers)
+            request_headers['Authorization'] = self.auth_token
+            response = method(url, headers=request_headers)
 
         self._raise_for_status(response)
         return response
