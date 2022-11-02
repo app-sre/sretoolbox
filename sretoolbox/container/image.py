@@ -173,6 +173,48 @@ class Image:
 
         return self._cache_digest
 
+    @retry(exceptions=(HTTPError, requests.ConnectionError), max_attempts=5)
+    def _do_request(self, url, method=requests.get, headers=None):
+        # Use any cached tokens, they may still be valid
+        request_headers = {
+            'Accept': ",".join([
+                SCHEMA1_MANIFEST_MEDIA_TYPE,
+                SCHEMA1_SIGNED_MANIFEST_MEDIA_TYPE,
+                SCHEMA2_MANIFEST_MEDIA_TYPE,
+                SCHEMA2_MANIFEST_LIST_MEDIA_TYPE,
+                OCI_MANIFEST_MEDIA_TYPE,
+                OCI_IMAGE_INDEX_MEDIA_TYPE,
+            ])
+        }
+
+        if headers:
+            request_headers.update(headers)
+
+        if self.auth_token:
+            request_headers['Authorization'] = self.auth_token
+            auth = None
+        else:
+            auth = self.auth
+
+        response = method(url, headers=request_headers, auth=auth,
+                          verify=self.ssl_verify)
+
+        # Unauthorized, meaning we have to acquire a new token
+        if response.status_code == 401:
+            auth_specs = response.headers.get('Www-Authenticate')
+            if auth_specs is None:
+                self._raise_for_status(response)
+
+            www_auth = self._parse_www_auth(auth_specs)
+
+            # Try again, with the new Authorization header
+            self.auth_token = self._get_auth(www_auth)
+            request_headers['Authorization'] = self.auth_token
+            response = method(url, headers=request_headers)
+
+        self._raise_for_status(response)
+        return response
+
     def _get_cache_key(self, url):
         # Returns the cache key. It uses the username as entries in the cache
         # may have been added by a different user with different permissions.
@@ -485,48 +527,6 @@ class Image:
                 msg += f', {error["message"]}'
         _LOG.debug('[%s, %s]', str(self), msg)
         raise HTTPError(msg)
-
-    @retry(exceptions=(HTTPError, requests.ConnectionError), max_attempts=5)
-    def _do_request(self, url, method=requests.get, headers=None):
-        # Use any cached tokens, they may still be valid
-        request_headers = {
-            'Accept': ",".join([
-                SCHEMA1_MANIFEST_MEDIA_TYPE,
-                SCHEMA1_SIGNED_MANIFEST_MEDIA_TYPE,
-                SCHEMA2_MANIFEST_MEDIA_TYPE,
-                SCHEMA2_MANIFEST_LIST_MEDIA_TYPE,
-                OCI_MANIFEST_MEDIA_TYPE,
-                OCI_IMAGE_INDEX_MEDIA_TYPE,
-            ])
-        }
-
-        if headers:
-            request_headers.update(headers)
-
-        if self.auth_token:
-            request_headers['Authorization'] = self.auth_token
-            auth = None
-        else:
-            auth = self.auth
-
-        response = method(url, headers=request_headers, auth=auth,
-                          verify=self.ssl_verify)
-
-        # Unauthorized, meaning we have to acquire a new token
-        if response.status_code == 401:
-            auth_specs = response.headers.get('Www-Authenticate')
-            if auth_specs is None:
-                self._raise_for_status(response)
-
-            www_auth = self._parse_www_auth(auth_specs)
-
-            # Try again, with the new Authorization header
-            self.auth_token = self._get_auth(www_auth)
-            request_headers['Authorization'] = self.auth_token
-            response = method(url, headers=request_headers)
-
-        self._raise_for_status(response)
-        return response
 
     @property
     def tags(self):
