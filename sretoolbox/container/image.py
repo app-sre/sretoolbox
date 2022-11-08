@@ -140,6 +140,11 @@ class Image:
         self._cache_manifest = None
         self._cache_content_type = None
 
+        if self.response_cache is not None:
+            self.response_cache_hits = self.response_cache_misses = 0
+        else:
+            self.response_cache_hits = self.response_cache_misses = None
+
     def _can_response_be_cached(self):
         # Determines if we have a method to handle response cache entries for
         # the given registry
@@ -245,6 +250,8 @@ class Image:
                 self, self._HANDLE_RESPONSE_CACHE_METHODS[self.registry]
             )(url)
         else:
+            _LOG.debug("CACHE_MISS %s", url)
+            self.response_cache_misses += 1
             self.response_cache[key] = self._do_request(url)
 
         return self.response_cache[key]
@@ -297,8 +304,12 @@ class Image:
         rsp = self._do_request(url, headers=headers)
 
         if rsp.status_code == HTTPStatus.NOT_MODIFIED:
+            _LOG.debug("CACHE_HIT %s", url)
+            self.response_cache_hits += 1
             return cached_response
 
+        _LOG.debug("CACHE_MISS %s", url)
+        self.response_cache_misses += 1
         return rsp
 
     def _handle_docker_content_digest(self, url):
@@ -314,11 +325,17 @@ class Image:
         rsp = self._do_request(url, requests.head)
 
         if header not in rsp.headers:
+            _LOG.debug("CACHE_MISS %s", url)
+            self.response_cache_misses += 1
             return self._do_request(url)
 
         if rsp.headers.get(header) != cached_response.headers.get(header):
+            _LOG.debug("CACHE_MISS %s", url)
+            self.response_cache_misses += 1
             return self._do_request(url)
 
+        _LOG.debug("CACHE_HIT %s", url)
+        self.response_cache_hits += 1
         return cached_response
 
     def is_from(self, other):
