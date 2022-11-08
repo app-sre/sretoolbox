@@ -435,12 +435,16 @@ class TestImageManifest:
 
         assert cache
         assert dockerhub_image_mock['mock'].call_count == 1
+        assert i1.response_cache_hits == 0
+        assert i1.response_cache_misses == 1
 
         i2 = Image(dockerhub_image_mock['url'], response_cache=cache, auth_token=token)
         m2 = i2.manifest
 
         assert m1 == m2
         assert dockerhub_image_mock['mock'].call_count == 2
+        assert i2.response_cache_hits == 1
+        assert i2.response_cache_misses == 0
 
     def test_conditional_manifest_unchanged(self, redhat_registry_image_mock):
         cache = {}
@@ -449,12 +453,16 @@ class TestImageManifest:
 
         assert cache
         assert redhat_registry_image_mock['mock'].call_count == 1
+        assert i1.response_cache_hits == 0
+        assert i1.response_cache_misses == 1
 
         i2 = Image(redhat_registry_image_mock['url'], response_cache=cache)
         m2 = i2.manifest
 
         assert m1 == m2
         assert redhat_registry_image_mock['mock'].call_count == 2
+        assert i2.response_cache_hits == 1
+        assert i2.response_cache_misses == 0
 
     def test_dockerhub_manifest_changed(self, dockerhub_image_mock):
         rsp = requests.Response()
@@ -473,6 +481,8 @@ class TestImageManifest:
 
         assert cache[key] != rsp
         assert dockerhub_image_mock['mock'].call_count == 2
+        assert i.response_cache_hits == 0
+        assert i.response_cache_misses == 1
 
     def test_conditional_manifest_changed(self, redhat_registry_image_mock):
         rsp = requests.Response()
@@ -494,6 +504,8 @@ class TestImageManifest:
 
         assert cache[key] != rsp
         assert redhat_registry_image_mock['mock'].call_count == 1
+        assert i.response_cache_hits == 0
+        assert i.response_cache_misses == 1
 
 
 class TestImageComparison:
