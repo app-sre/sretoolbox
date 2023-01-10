@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import unittest
+import sys
 from sretoolbox.utils import threaded
 
 
@@ -22,6 +23,10 @@ def identity(x):
 
 def raiser(*args, **kwargs):
     raise Exception("Oh noes!")
+
+def sys_exit_func(*args, **kwargs):
+    print(args)
+    sys.exit(args)
 
 
 class TestWrappers(unittest.TestCase):
@@ -47,6 +52,20 @@ class TestWrappers(unittest.TestCase):
 
         rs = f(42)
         self.assertEqual(rs.args, ("Oh noes!", ))
+
+    def test_catching_traceback_sys_exit_failure(self):
+        f = threaded._catching_traceback(sys_exit_func)
+
+        rs = f(1)
+        print(rs)
+        self.assertEqual(rs.code, (1))
+
+    def test_catching_traceback_sys_exit_success(self):
+        f = threaded._catching_traceback(sys_exit_func)
+
+        rs = f(0)
+        print(rs)
+        self.assertEqual(rs, None)
 
 
 class TestRunStuff(unittest.TestCase):
