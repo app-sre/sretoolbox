@@ -72,6 +72,11 @@ def _catching_traceback(func):
         # pylint: disable=broad-except
         except Exception as details:
             return details
+        except SystemExit as details:
+            if int(details.code) != 0:
+                return details
+            return None
+
     return wrapper
 
 
