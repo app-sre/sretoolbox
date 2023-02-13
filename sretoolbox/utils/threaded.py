@@ -19,6 +19,8 @@ Threading abstractions.
 import functools
 from multiprocessing.dummy import Pool as ThreadPool
 
+from sretoolbox.utils.exception import SystemExitWrapper
+
 
 def run(func, iterable, thread_pool_size, return_exceptions=False, **kwargs):
     """run executes a function for each item in the input iterable.
@@ -27,6 +29,8 @@ def run(func, iterable, thread_pool_size, return_exceptions=False, **kwargs):
     (optional). If return_exceptions is true, any exceptions that may
     have happened in each thread are returned in the return value,
     allowing the caller to get as much work done as possible.
+
+    SystemExit exceptions are treated the same way as regular exceptions.
     """
 
     if return_exceptions:
@@ -38,7 +42,13 @@ def run(func, iterable, thread_pool_size, return_exceptions=False, **kwargs):
 
     pool = ThreadPool(thread_pool_size)
     try:
-        return pool.map(func_partial, iterable)
+        try:
+            return pool.map(func_partial, iterable)
+        except SystemExitWrapper as details:
+            # a SystemExitWrapper is just a wrapper around a SystemExit
+            # so we can catch it here reliably and propagate the actual
+            # SystemExit as is
+            raise details.origional_sys_exit_exception
     finally:
         pool.close()
         pool.join()
@@ -70,12 +80,8 @@ def _catching_traceback(func):
         try:
             return func(*args, **kwargs)
         # pylint: disable=broad-except
-        except Exception as details:
+        except BaseException as details:
             return details
-        except SystemExit as details:
-            if int(details.code) != 0:
-                return details
-            return None
 
     return wrapper
 
@@ -83,5 +89,16 @@ def _catching_traceback(func):
 def _full_traceback(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
+        try:
+            return func(*args, **kwargs)
+        # pylint: disable=broad-except
+        except SystemExit as details:
+            # a SystemExit will not propagate up to the user of the Pool
+            # hence it would wait forever for the thread to finish
+            # therefore we need to catch it here, wrap it in a regular
+            # exception and unpack it again once the pool has finished
+            # all tasks
+            raise SystemExitWrapper(  # pylint: disable=raise-missing-from
+                details
+            )
     return wrapper
