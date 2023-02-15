@@ -15,70 +15,72 @@
 import unittest
 import sys
 from sretoolbox.utils import threaded
-
-
-def identity(x):
-    return x
-
-
-def raiser(*args, **kwargs):
-    raise Exception("Oh noes!")
-
-def sys_exit_func(*args, **kwargs):
-    sys.exit(args)
+from sretoolbox.utils.exception import SystemExitWrapper
+from tests import fixture_function
 
 
 class TestWrappers(unittest.TestCase):
 
     def test_full_traceback_no_error(self):
-        f = threaded._full_traceback(identity)
+        f = threaded._full_traceback(fixture_function.identity)
 
         self.assertEqual(f(42), 42)
 
     def tet_full_traceback_exception(self):
-        f = threaded._full_traceback(raiser)
+        f = threaded._full_traceback(fixture_function.raiser)
 
         with self.assertRaises(Exception):
             f(42)
 
+    def tet_full_traceback_exception(self):
+        f = threaded._full_traceback(fixture_function.sys_exit_func)
+
+        with self.assertRaises(SystemExitWrapper):
+            f(1)
+
     def test_catching_traceback_no_error(self):
-        f = threaded._catching_traceback(identity)
+        f = threaded._catching_traceback(fixture_function.identity)
 
         self.assertEqual(f(42), 42)
 
     def test_catching_traceback_exception(self):
-        f = threaded._catching_traceback(raiser)
+        f = threaded._catching_traceback(fixture_function.raiser)
 
         rs = f(42)
         self.assertEqual(rs.args, ("Oh noes!", ))
 
     def test_catching_traceback_sys_exit_failure(self):
-        f = threaded._catching_traceback(sys_exit_func)
+        f = threaded._catching_traceback(fixture_function.sys_exit_func)
 
         rs = f(1)
         self.assertEqual(rs.code, (1))
 
     def test_catching_traceback_sys_exit_success(self):
-        f = threaded._catching_traceback(sys_exit_func)
+        f = threaded._catching_traceback(fixture_function.sys_exit_func)
 
         rs = f(0)
-        self.assertEqual(rs, None)
+        self.assertIsInstance(rs, SystemExit)
+        self.assertEqual(rs.args, (0,))
 
 
-class TestRunStuff(unittest.TestCase):
+class TestRunThreadStuff(unittest.TestCase):
     def test_run_normal(self):
-        rs = threaded.run(identity, [42, 43, 44], 1)
+        rs = threaded.run(fixture_function.identity, [42, 43, 44], 1)
         self.assertEqual(rs, [42, 43, 44])
 
     def test_run_normal_with_exceptions(self):
         with self.assertRaises(Exception):
-            threaded.run(raiser, [42], 1)
+            threaded.run(fixture_function.raiser, [42], 1)
 
     def test_run_catching(self):
-        rs = threaded.run(identity, [42, 43, 44], 1, return_exceptions=True)
+        rs = threaded.run(fixture_function.identity, [42, 43, 44], 1, return_exceptions=True)
         self.assertEqual(rs, [42, 43, 44])
 
     def test_run_return_exceptions(self):
-        rs = threaded.run(raiser, [42], 1, return_exceptions=True)
+        rs = threaded.run(fixture_function.raiser, [42], 1, return_exceptions=True)
         self.assertEqual(rs[0].args, ("Oh noes!", ))
         self.assertEqual(len(rs), 1)
+
+    def test_run_normal_sys_exit(self):
+        with self.assertRaises(SystemExit):
+            threaded.run(fixture_function.sys_exit_func, [0, 0], 2)
