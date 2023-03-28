@@ -15,8 +15,8 @@
 """
 Multiprocessing abstractions.
 """
-
-from multiprocessing import Pool
+from functools import partial
+from concurrent.futures import ProcessPoolExecutor
 
 from sretoolbox.utils.exception import SystemExitWrapper
 
@@ -37,11 +37,11 @@ def run(func, iterable, process_pool_size,
         tracer = _catching_traceback
     else:
         tracer = _full_traceback
+    func_partial = partial(tracer, func, **kwargs)
 
-    task_list = [(func, [i], kwargs) for i in iterable]
-    with Pool(process_pool_size) as pool:
+    with ProcessPoolExecutor(process_pool_size) as pool:
         try:
-            return pool.map(tracer, task_list)
+            return list(pool.map(func_partial, iterable))
         except SystemExitWrapper as details:
             # a SystemExitWrapper is just a wrapper around a SystemExit
             # so we can catch it here reliably and propagate the actual
@@ -49,18 +49,16 @@ def run(func, iterable, process_pool_size,
             raise details.origional_sys_exit_exception
 
 
-def _catching_traceback(spec):
+def _catching_traceback(func, *args, **kwargs):
     try:
-        func, args, kwargs = spec
         return func(*args, **kwargs)
     # pylint: disable=broad-except
     except BaseException as details:
         return details
 
 
-def _full_traceback(spec):
+def _full_traceback(func, *args, **kwargs):
     try:
-        func, args, kwargs = spec
         return func(*args, **kwargs)
     except SystemExit as details:
         # a SystemExit will not propagate up to the user of the Pool

@@ -17,7 +17,7 @@ Threading abstractions.
 """
 
 import functools
-from multiprocessing.dummy import Pool as ThreadPool
+from concurrent.futures import ThreadPoolExecutor
 
 from sretoolbox.utils.exception import SystemExitWrapper
 
@@ -40,18 +40,14 @@ def run(func, iterable, thread_pool_size, return_exceptions=False, **kwargs):
 
     func_partial = functools.partial(tracer(func), **kwargs)
 
-    pool = ThreadPool(thread_pool_size)
-    try:
+    with ThreadPoolExecutor(thread_pool_size) as pool:
         try:
-            return pool.map(func_partial, iterable)
+            return list(pool.map(func_partial, iterable))
         except SystemExitWrapper as details:
             # a SystemExitWrapper is just a wrapper around a SystemExit
             # so we can catch it here reliably and propagate the actual
             # SystemExit as is
             raise details.origional_sys_exit_exception
-    finally:
-        pool.close()
-        pool.join()
 
 
 def estimate_available_thread_pool_size(thread_pool_size, targets_len):
