@@ -17,19 +17,57 @@ Threading abstractions.
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Callable, Iterable, List
 
 from sretoolbox.utils.concurrent import pmap
 
 
-def run(func, iterable, thread_pool_size, return_exceptions=False, **kwargs):
-    """run executes a function for each item in the input iterable.
-    execution will be multithreaded according to the input
-    thread_pool_size.  kwargs are passed to the input function
-    (optional). If return_exceptions is true, any exceptions that may
-    have happened in each thread are returned in the return value,
-    allowing the caller to get as much work done as possible.
+def run(
+    func: Callable[..., Any],
+    iterable: Iterable[Any],
+    thread_pool_size: int,
+    return_exceptions: bool = False,
+    **kwargs: Any,
+) -> List[Any]:
+    """
+    Applies the provided function `func` to each element in the given
+    `iterable` using a thread pool with a maximum of `thread_pool_size`.
 
-    SystemExit exceptions are treated the same way as regular exceptions.
+    Args:
+        func (callable): A function to be applied to the elements of the
+            iterable. This function should take one positional argument and
+            return a result.
+        iterable (iterable): An iterable object containing the input elements
+            to be processed by the `func` function.
+        thread_pool_size (int): An integer that specifies the maximum number of
+            workers to be used for processing the iterable.
+        return_exceptions (bool, optional): A boolean value indicating whether
+            exceptions raised by the `func` function should be returned in the
+            result list or not. Default is `False`.
+        **kwargs: Optional keyword arguments that will be passed to the `func`
+            function along with the input elements.
+
+    Returns:
+        list: A list of results after applying the `func` function to each
+        element of the iterable.
+
+    Raises:
+        The function raises any exceptions raised by the `func` function, with
+        full traceback information, if `return_exceptions` is `False`.
+
+    Notes:
+        - If `return_exceptions` is `True`, any exceptions raised by the `func`
+          function are returned in the result list.
+        - Otherwise this function catches `SystemExit` exceptions and
+          propagates a `SystemExitWrapper` exception.
+
+    Example:
+        >>> def square(x):
+        ...     return x ** 2
+        >>> iterable = [1, 2, 3, 4, 5]
+        >>> pool_size = 2
+        >>> run(square, iterable, pool_size)
+        [1, 4, 9, 16, 25]
     """
     return pmap(func,
                 iterable,
@@ -39,7 +77,10 @@ def run(func, iterable, thread_pool_size, return_exceptions=False, **kwargs):
                 **kwargs)
 
 
-def estimate_available_thread_pool_size(thread_pool_size, targets_len):
+def estimate_available_thread_pool_size(
+    thread_pool_size: int,
+    targets_len: int,
+) -> int:
     """estimates available thread pool size based when threading
     is also used in nested functions (targets)
 

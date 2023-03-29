@@ -15,25 +15,29 @@
 """
 Concurrent abstractions.
 """
-
+from concurrent.futures import Executor
 from functools import partial
+from typing import Any, Callable, Iterable, List, Type
+
 from sretoolbox.utils.exception import SystemExitWrapper
 
 
-def pmap(func,
-         iterable,
-         executor,
-         pool_size,
-         return_exceptions=False,
-         **kwargs):
+def pmap(
+    func: Callable[..., Any],
+    iterable: Iterable[Any],
+    executor: Type[Executor],
+    pool_size: int,
+    return_exceptions: bool = False,
+    **kwargs: Any,
+) -> List[Any]:
     """
     Applies the provided function `func` to each element in the given
     `iterable` using a pool with a maximum of `pool_size`.
 
     Args:
         func (callable): A function to be applied to the elements of the
-            iterable. This function should take one argument and return a
-            result.
+            iterable. This function should take one positional argument and
+            return a result.
         iterable (iterable): An iterable object containing the input elements
             to be processed by the `func` function.
         executor (Executor): An object representing an executor to be used for
@@ -60,8 +64,8 @@ def pmap(func,
     Notes:
         - If `return_exceptions` is `True`, any exceptions raised by the `func`
           function are returned in the result list.
-        - This function catches `SystemExitWrapper` exceptions and propagates
-          the actual `SystemExit` exception.
+        - Otherwise this function catches `SystemExit` exceptions and
+          propagates a `SystemExitWrapper` exception.
 
     Example:
         >>> def square(x):
@@ -88,7 +92,11 @@ def pmap(func,
             raise details.origional_sys_exit_exception
 
 
-def _catching_traceback(func, *args, **kwargs):
+def _catching_traceback(
+    func: Callable[..., Any],
+    *args: Any,
+    **kwargs: Any,
+) -> Any:
     try:
         return func(*args, **kwargs)
     # pylint: disable=broad-except
@@ -96,7 +104,11 @@ def _catching_traceback(func, *args, **kwargs):
         return details
 
 
-def _full_traceback(func, *args, **kwargs):
+def _full_traceback(
+    func: Callable[..., Any],
+    *args: Any,
+    **kwargs: Any,
+) -> Any:
     try:
         return func(*args, **kwargs)
     except SystemExit as details:
