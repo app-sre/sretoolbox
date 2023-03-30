@@ -89,7 +89,7 @@ def pmap(
             # a SystemExitWrapper is just a wrapper around a SystemExit
             # so we can catch it here reliably and propagate the actual
             # SystemExit as is
-            raise details.origional_sys_exit_exception
+            raise details.original_sys_exit_exception
 
 
 def _catching_traceback(
