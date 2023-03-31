@@ -13,54 +13,9 @@
 # limitations under the License.
 
 import unittest
-import sys
+
 from sretoolbox.utils import threaded
-from sretoolbox.utils.exception import SystemExitWrapper
 from tests import fixture_function
-
-
-class TestWrappers(unittest.TestCase):
-
-    def test_full_traceback_no_error(self):
-        f = threaded._full_traceback(fixture_function.identity)
-
-        self.assertEqual(f(42), 42)
-
-    def tet_full_traceback_exception(self):
-        f = threaded._full_traceback(fixture_function.raiser)
-
-        with self.assertRaises(Exception):
-            f(42)
-
-    def tet_full_traceback_exception(self):
-        f = threaded._full_traceback(fixture_function.sys_exit_func)
-
-        with self.assertRaises(SystemExitWrapper):
-            f(1)
-
-    def test_catching_traceback_no_error(self):
-        f = threaded._catching_traceback(fixture_function.identity)
-
-        self.assertEqual(f(42), 42)
-
-    def test_catching_traceback_exception(self):
-        f = threaded._catching_traceback(fixture_function.raiser)
-
-        rs = f(42)
-        self.assertEqual(rs.args, ("Oh noes!", ))
-
-    def test_catching_traceback_sys_exit_failure(self):
-        f = threaded._catching_traceback(fixture_function.sys_exit_func)
-
-        rs = f(1)
-        self.assertEqual(rs.code, (1))
-
-    def test_catching_traceback_sys_exit_success(self):
-        f = threaded._catching_traceback(fixture_function.sys_exit_func)
-
-        rs = f(0)
-        self.assertIsInstance(rs, SystemExit)
-        self.assertEqual(rs.args, (0,))
 
 
 class TestRunThreadStuff(unittest.TestCase):

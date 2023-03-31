@@ -15,59 +15,62 @@
 """
 Multiprocessing abstractions.
 """
+from concurrent.futures import ProcessPoolExecutor
+from typing import Any, Callable, Iterable, List
 
-from multiprocessing import Pool
-
-from sretoolbox.utils.exception import SystemExitWrapper
+from sretoolbox.utils.concurrent import pmap
 
 
-def run(func, iterable, process_pool_size,
-        return_exceptions=False, **kwargs):
+def run(
+    func: Callable[..., Any],
+    iterable: Iterable[Any],
+    process_pool_size: int,
+    return_exceptions: bool = False,
+    **kwargs: Any,
+) -> List[Any]:
     """
-    run_processes executes a function for each item in the input iterable.
-    execution will be done in a processpool according to the input
-    process_pool_size.  kwargs are passed to the input function
-    (optional). If return_exceptions is true, any exceptions that may
-    have happened in each thread are returned in the return value,
-    allowing the caller to get as much work done as possible.
+    Applies the provided function `func` to each element in the given
+    `iterable` using a process pool with a maximum of `process_pool_size`.
 
-    SystemExit exceptions are treated the same way as regular exceptions.
+    Args:
+        func (callable): A function to be applied to the elements of the
+            iterable. This function should take one positional argument and
+            return a result.
+        iterable (iterable): An iterable object containing the input elements
+            to be processed by the `func` function.
+        process_pool_size (int): An integer that specifies the maximum number
+            of workers to be used for processing the iterable.
+        return_exceptions (bool, optional): A boolean value indicating whether
+            exceptions raised by the `func` function should be returned in the
+            result list or not. Default is `False`.
+        **kwargs: Optional keyword arguments that will be passed to the `func`
+            function along with the input elements.
+
+    Returns:
+        list: A list of results after applying the `func` function to each
+        element of the iterable.
+
+    Raises:
+        The function raises any exceptions raised by the `func` function, with
+        full traceback information, if `return_exceptions` is `False`.
+
+    Notes:
+        - If `return_exceptions` is `True`, any exceptions raised by the `func`
+          function are returned in the result list.
+        - Otherwise this function catches `SystemExit` exceptions and
+          propagates a `SystemExitWrapper` exception.
+
+    Example:
+        >>> def square(x):
+        ...     return x ** 2
+        >>> iterable = [1, 2, 3, 4, 5]
+        >>> pool_size = 2
+        >>> run(square, iterable, pool_size)
+        [1, 4, 9, 16, 25]
     """
-    if return_exceptions:
-        tracer = _catching_traceback
-    else:
-        tracer = _full_traceback
-
-    task_list = [(func, [i], kwargs) for i in iterable]
-    with Pool(process_pool_size) as pool:
-        try:
-            return pool.map(tracer, task_list)
-        except SystemExitWrapper as details:
-            # a SystemExitWrapper is just a wrapper around a SystemExit
-            # so we can catch it here reliably and propagate the actual
-            # SystemExit as is
-            raise details.origional_sys_exit_exception
-
-
-def _catching_traceback(spec):
-    try:
-        func, args, kwargs = spec
-        return func(*args, **kwargs)
-    # pylint: disable=broad-except
-    except BaseException as details:
-        return details
-
-
-def _full_traceback(spec):
-    try:
-        func, args, kwargs = spec
-        return func(*args, **kwargs)
-    except SystemExit as details:
-        # a SystemExit will not propagate up to the user of the Pool
-        # hence it would wait forever for the child process to finish
-        # therefore we need to catch it here, wrap it in a regular
-        # exception and unpack it again once the pool has finished
-        # all tasks
-        raise SystemExitWrapper(  # pylint: disable=raise-missing-from
-            details
-        )
+    return pmap(func,
+                iterable,
+                ProcessPoolExecutor,
+                process_pool_size,
+                return_exceptions,
+                **kwargs)

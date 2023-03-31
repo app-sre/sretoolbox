@@ -13,25 +13,26 @@
 # limitations under the License.
 
 """
-Threading abstractions.
+Concurrent abstractions.
 """
+from concurrent.futures import Executor
+from functools import partial
+from typing import Any, Callable, Iterable, List, Type
 
-from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Callable, Iterable, List
-
-from sretoolbox.utils.concurrent import pmap
+from sretoolbox.utils.exception import SystemExitWrapper
 
 
-def run(
+def pmap(
     func: Callable[..., Any],
     iterable: Iterable[Any],
-    thread_pool_size: int,
+    executor: Type[Executor],
+    pool_size: int,
     return_exceptions: bool = False,
     **kwargs: Any,
 ) -> List[Any]:
     """
     Applies the provided function `func` to each element in the given
-    `iterable` using a thread pool with a maximum of `thread_pool_size`.
+    `iterable` using a pool with a maximum of `pool_size`.
 
     Args:
         func (callable): A function to be applied to the elements of the
@@ -39,7 +40,12 @@ def run(
             return a result.
         iterable (iterable): An iterable object containing the input elements
             to be processed by the `func` function.
-        thread_pool_size (int): An integer that specifies the maximum number of
+        executor (Executor): An object representing an executor to be used for
+            running the mapping operation. This should be a class that
+            implements the `__enter__` and `__exit__` methods, such as
+            `concurrent.futures.ThreadPoolExecutor` or
+            `concurrent.futures.ProcessPoolExecutor`.
+        pool_size (int): An integer that specifies the maximum number of
             workers to be used for processing the iterable.
         return_exceptions (bool, optional): A boolean value indicating whether
             exceptions raised by the `func` function should be returned in the
@@ -66,35 +72,51 @@ def run(
         ...     return x ** 2
         >>> iterable = [1, 2, 3, 4, 5]
         >>> pool_size = 2
-        >>> run(square, iterable, pool_size)
+        >>> executor = concurrent.futures.ThreadPoolExecutor
+        >>> pmap(square, iterable, executor, pool_size)
         [1, 4, 9, 16, 25]
     """
-    return pmap(func,
-                iterable,
-                ThreadPoolExecutor,
-                thread_pool_size,
-                return_exceptions,
-                **kwargs)
+    if return_exceptions:
+        tracer = _catching_traceback
+    else:
+        tracer = _full_traceback
+    func_partial = partial(tracer, func, **kwargs)
+
+    with executor(pool_size) as pool:
+        try:
+            return list(pool.map(func_partial, iterable))
+        except SystemExitWrapper as details:
+            # a SystemExitWrapper is just a wrapper around a SystemExit
+            # so we can catch it here reliably and propagate the actual
+            # SystemExit as is
+            raise details.original_sys_exit_exception
 
 
-def estimate_available_thread_pool_size(
-    thread_pool_size: int,
-    targets_len: int,
-) -> int:
-    """estimates available thread pool size based when threading
-    is also used in nested functions (targets)
+def _catching_traceback(
+    func: Callable[..., Any],
+    *args: Any,
+    **kwargs: Any,
+) -> Any:
+    try:
+        return func(*args, **kwargs)
+    # pylint: disable=broad-except
+    except BaseException as details:
+        return details
 
-    If there are 20 threads and only 3 targets,
-    each thread can use ~20/3 threads internally.
-    If there are 20 threads and 100 targts,
-    each thread can use 1 thread internally.
 
-    Args:
-        thread_pool_size (int): Thread pool size to use
-        targets_len (int): Number of nested threaded functions
-
-    Returns:
-        int: Available thread pool size
-    """
-    available_thread_pool_size = int(thread_pool_size / targets_len)
-    return max(available_thread_pool_size, 1)
+def _full_traceback(
+    func: Callable[..., Any],
+    *args: Any,
+    **kwargs: Any,
+) -> Any:
+    try:
+        return func(*args, **kwargs)
+    except SystemExit as details:
+        # a SystemExit will not propagate up to the user of the Pool
+        # hence it would wait forever for the child worker to finish
+        # therefore we need to catch it here, wrap it in a regular
+        # exception and unpack it again once the pool has finished
+        # all tasks
+        raise SystemExitWrapper(  # pylint: disable=raise-missing-from
+            details
+        )
