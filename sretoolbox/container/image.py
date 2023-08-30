@@ -468,7 +468,7 @@ class Image:
             r'(?(registry)(?P<registry_slash>/))'  # Slash after domain:port
             r'(?P<repository>[\w\-]+)?'  # Repository (optional)
             r'(?(repository)(?P<repo_slash>/))'  # Slash, if repo is present
-            r'(?P<image>[\w\-.]+)'  # Image path (mandatory)
+            r'(?P<image>[\w\-./]+)'  # Image path (mandatory)
             # '@' delimiter iff it's a by-digest URI (optional)
             r'(?P<digest_at>@)?'
             # Digest ('sha256:' + 64 lowercase hex chars) iff '@' is present

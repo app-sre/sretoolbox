@@ -24,6 +24,12 @@ TAG = ('a61f590')
 A_SHA = (
   'sha256:bc1ed82a75f2ca160225b8281c50b7074e7678c2a1f61b1fb298e545b455925e')
 PARSER_DATA = [
+    ('quay.io/redhat-user-workloads/trusted-content-tenant/exhort-alpha/exhort:latest',
+     {'scheme': 'docker://',
+      'registry': 'quay.io',
+      'repository': 'redhat-user-workloads',
+      'image': 'trusted-content-tenant/exhort-alpha/exhort',
+      'tag': 'latest'}),
     ('memcached',
      {'scheme': 'docker://',
       'registry': 'docker.io',
@@ -79,6 +85,8 @@ PARSER_DATA = [
 ]
 
 STR_DATA = [
+    ('quay.io/redhat-user-workloads/trusted-content-tenant/exhort-alpha/exhort',
+     'docker://quay.io/redhat-user-workloads/trusted-content-tenant/exhort-alpha/exhort:latest'),
     ('memcached',
      'docker://docker.io/library/memcached:latest'),
     ('docker.io/fedora',
