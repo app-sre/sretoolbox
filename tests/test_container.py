@@ -18,7 +18,7 @@ import pytest
 import requests
 from requests.exceptions import HTTPError
 
-from sretoolbox.container.image import Image, ImageContainsError
+from sretoolbox.container.image import Image, ImageContainsError, ImageInvalidManifestError
 
 TAG = ('a61f590')
 A_SHA = (
@@ -431,9 +431,39 @@ class ImageMocks:
             'manifest_url': manifest_url,
         }
 
+    @classmethod
+    @pytest.fixture
+    def invalid_image_manifest_mock(self, requests_mock):
+        with open('tests/fixtures/manifests/invalid-image-manifest.json') as f:
+            manifest = f.read()
+
+        manifest_url = 'https://registry-1.docker.io/v2/test/image/manifests/latest'
+        headers = {
+            'Content-Type':
+                'application/vnd.docker.distribution.manifest.v2+json',
+            'Docker-Content-Digest': 'sha256:8a22fe7cf283894b7b2a8fad9f950'
+                                     '2ad3260db4ee31e609f7ce20d06d88d93c7',
+        }
+
+        requests_mock.get(
+            manifest_url,
+            headers=headers,
+            content=manifest.encode(),
+        )
+
+        requests_mock.head(manifest_url, headers=headers)
+
+        return {
+            'mock': requests_mock,
+            'url': 'docker://docker.io/test/image:latest',
+            'manifest_url': manifest_url,
+        }
+
 class TestImageManifest:
     dockerhub_image_mock = ImageMocks.dockerhub_image_mock
     redhat_registry_image_mock = ImageMocks.redhat_registry_image_mock
+
+    invalid_image_manifest_mock = ImageMocks.invalid_image_manifest_mock
 
     def test_dockerhub_manifest_unchanged(self, dockerhub_image_mock):
         cache = {}
@@ -514,6 +544,11 @@ class TestImageManifest:
         assert redhat_registry_image_mock['mock'].call_count == 1
         assert i.response_cache_hits == 0
         assert i.response_cache_misses == 1
+
+    def test_invalid_image_manifest(self, invalid_image_manifest_mock):
+        image = Image(invalid_image_manifest_mock['url'])
+        with pytest.raises(ImageInvalidManifestError):
+            _ = image.manifest
 
 
 class TestImageComparison:
