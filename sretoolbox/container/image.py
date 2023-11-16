@@ -70,6 +70,12 @@ class NoTagForImageByDigest(Exception):
             f"Can't determine a unique tag for Image: {str(image)}")
 
 
+class ImageInvalidManifestError(Exception):
+    """
+    Raised when there was an error decoding the manifest payload as json
+    """
+
+
 class Image:
     """
     Represents a container image.
@@ -390,7 +396,13 @@ class Image:
         """
         if self._cache_manifest is None:
             manifest = self._get_manifest()
-            self._cache_manifest = manifest.json()
+            try:
+                self._cache_manifest = manifest.json()
+            except json.decoder.JSONDecodeError as exc:
+                raise ImageInvalidManifestError(
+                    f"Invalid manifest for {self.url_tag} - "
+                    "could not decode manifest as json"
+                ) from exc
             self._cache_content_type = manifest.headers.get('Content-Type')
             self._cache_digest = manifest.headers.get('Docker-Content-Digest')
 
