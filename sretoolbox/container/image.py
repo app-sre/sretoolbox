@@ -655,11 +655,15 @@ class Image:
         return False
 
     def __getitem__(self, item):
-        return Image(url=str(self), tag_override=str(item),
-                     username=self.username, password=self.password,
+        return Image(url=str(self),
+                     tag_override=str(item),
+                     username=self.username,
+                     password=self.password,
                      auth_server=self.auth_server,
                      response_cache=self.response_cache,
-                     auth_token=self.auth_token)
+                     auth_token=self.auth_token,
+                     session=self.session,
+                     timeout=self.timeout)
 
     def __iter__(self):
         for tag in self.tags:
