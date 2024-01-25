@@ -202,6 +202,7 @@ class TestRequestGet:
             headers={'Accept': self.expected_accept_header},
             auth=('user', 'pass'),
             verify=True,
+            timeout=None,
         )
         getauth.assert_not_called()
         parseauth.assert_not_called()
@@ -248,7 +249,8 @@ class TestRequestGet:
         session = create_autospec(requests.Session)
         session.request.return_value = r
 
-        i = Image("quay.io/foo/bar:latest", username="user", password="pass", session=session)
+        i = Image("quay.io/foo/bar:latest", username="user", password="pass",
+                  session=session, timeout=10)
         i._do_request.__wrapped__(i, "http://www.google.com")
 
         session.request.assert_called_once_with(
@@ -257,6 +259,7 @@ class TestRequestGet:
             headers={'Accept': self.expected_accept_header},
             auth=('user', 'pass'),
             verify=True,
+            timeout=10,
         )
         mocked_requests.request.assert_not_called()
         getauth.assert_not_called()

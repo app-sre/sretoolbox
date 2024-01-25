@@ -92,6 +92,8 @@ class Image:
     :param ssl_verify: (optional) Whether to verify the SSL certificate
     :session: (optional) A requests session to use for all requests, if not
                          provided, each request will create a new session.
+    :timeout: (optional) The timeout for the requests, as a float,
+                         or a (connect timeout, read timeout) tuple.
     """
 
     # This is a method dispatcher to handle how to handle responses that are
@@ -105,7 +107,7 @@ class Image:
 
     def __init__(self, url, tag_override=None, username=None, password=None,
                  auth_server=None, response_cache=None, auth_token=None,
-                 ssl_verify=True, session=None):
+                 ssl_verify=True, session=None, timeout=None):
         image_data = self._parse_image_url(url)
         self.scheme = image_data['scheme']
         self.registry = image_data['registry']
@@ -114,6 +116,7 @@ class Image:
         self.response_cache = response_cache
         self.ssl_verify = ssl_verify
         self.session = session
+        self.timeout = timeout
 
         self.auth_token = auth_token
         if tag_override is None:
@@ -211,8 +214,8 @@ class Image:
             auth = self.auth
 
         request = self.session.request if self.session else requests.request
-        response = request(method, url, headers=request_headers,
-                           auth=auth, verify=self.ssl_verify)
+        response = request(method, url, headers=request_headers, auth=auth,
+                           verify=self.ssl_verify, timeout=self.timeout)
 
         # Unauthorized, meaning we have to acquire a new token
         if response.status_code == 401:
@@ -225,7 +228,8 @@ class Image:
             # Try again, with the new Authorization header
             self.auth_token = self._get_auth(www_auth)
             request_headers['Authorization'] = self.auth_token
-            response = request(method, url, headers=request_headers)
+            response = request(method, url, headers=request_headers,
+                               timeout=self.timeout)
 
         self._raise_for_status(response)
         return response
@@ -424,11 +428,11 @@ class Image:
             url += f'{key}={value}&'
 
         get = self.session.get if self.session else requests.get
-        response = get(url, auth=self.auth)
+        response = get(url, auth=self.auth, timeout=self.timeout)
 
         if response.status_code == 401:
             # Try again without auth
-            response = get(url)
+            response = get(url, timeout=self.timeout)
 
         self._raise_for_status(response, error_msg=f'unable to retrieve auth '
                                                    f'token from {url}')
