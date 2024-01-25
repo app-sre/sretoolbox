@@ -167,12 +167,19 @@ class TestContainer:
         assert e.typename == 'NoTagForImageByDigest'
 
     def test_getitem(self):
-        image = Image("quay.io/foo/bar:latest", response_cache={},
-                      auth_token="atoken")
+        session = create_autospec(requests.Session)
+        timeout = 30
+        image = Image("quay.io/foo/bar:latest",
+                      response_cache={},
+                      auth_token="atoken",
+                      session=session,
+                      timeout=timeout)
         other = image['current']
         assert image.response_cache is other.response_cache
         assert other.auth_token is image.auth_token
         assert other.tag == 'current'
+        assert other.session == session
+        assert other.timeout == timeout
 
 
 @patch("sretoolbox.container.image.requests")
