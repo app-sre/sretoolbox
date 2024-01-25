@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, create_autospec
 from http import HTTPStatus
 
 import pytest
@@ -175,25 +175,38 @@ class TestContainer:
         assert other.tag == 'current'
 
 
+@patch("sretoolbox.container.image.requests")
 @patch.object(Image, '_parse_www_auth')
 @patch.object(Image, '_get_auth')
 class TestRequestGet:
-    def test_username_and_password_ok(self, getauth, parseauth):
+    expected_accept_header = (
+        "application/vnd.docker.distribution.manifest.v1+json,"
+        "application/vnd.docker.distribution.manifest.v1+prettyjws,"
+        "application/vnd.docker.distribution.manifest.v2+json,"
+        "application/vnd.docker.distribution.manifest.list.v2+json,"
+        "application/vnd.oci.image.manifest.v1+json,"
+        "application/vnd.oci.image.index.v1+json"
+    )
+
+    def test_username_and_password_ok(self, getauth, parseauth, mocked_requests):
         r = requests.Response()
         r.status_code = 200
-        method = MagicMock(return_value=r)
-        i = Image("quay.io/foo/bar:latest", username="user", password="pass")
-        i._do_request.__wrapped__(i, "http://www.google.com", method=method)
-        method.assert_called_once()
-        c = method.call_args_list[0]
+        mocked_requests.request.return_value = r
 
-        assert c[0] == ('http://www.google.com', )
-        assert 'Authorization' not in c[1]['headers']
-        assert c[1]['auth'] == i.auth
+        i = Image("quay.io/foo/bar:latest", username="user", password="pass")
+        i._do_request.__wrapped__(i, "http://www.google.com")
+
+        mocked_requests.request.assert_called_once_with(
+            "GET",
+            'http://www.google.com',
+            headers={'Accept': self.expected_accept_header},
+            auth=('user', 'pass'),
+            verify=True,
+        )
         getauth.assert_not_called()
         parseauth.assert_not_called()
 
-    def test_username_and_password_reauthenticate(self, getauth, parseauth):
+    def test_username_and_password_reauthenticate(self, getauth, parseauth, mocked_requests):
         r = requests.Response()
         r.status_code = 401
         r.headers['Www-Authenticate'] = 'something something'
@@ -201,31 +214,53 @@ class TestRequestGet:
         r = requests.Response()
         r.status_code = 200
         gets.append(r)
-        method = MagicMock(side_effect=gets)
+        mocked_requests.request.side_effect = gets
         r = requests.Response()
         r.status_code = 200
-        i = Image("quay.io/foo/bar:latest", username="user", password="pass")
         getauth.return_value = "anauthtoken"
         parseauth.return_value = "aparsedauth"
-        i._do_request.__wrapped__(i, "http://www.google.com", method=method)
+
+        i = Image("quay.io/foo/bar:latest", username="user", password="pass")
+        i._do_request.__wrapped__(i, "http://www.google.com")
+
         parseauth.assert_called_once_with('something something')
-        assert method.call_count == 2
+        assert mocked_requests.request.call_count == 2
         assert i.auth_token == 'anauthtoken'
 
-    def test_persistent_failure(self, getauth, parseauth):
+    def test_persistent_failure(self, getauth, parseauth, mocked_requests):
         r = requests.Response()
         r.status_code = 401
         r.headers['Www-Authenticate'] = 'something something'
-        method = MagicMock(return_value=r)
-        r = requests.Response()
-        r.status_code = 200
-        i = Image("quay.io/foo/bar:latest", username="user", password="pass")
+        mocked_requests.request.return_value = r
         getauth.return_value = "anauthtoken"
         parseauth.return_value = "aparsedauth"
+
+        i = Image("quay.io/foo/bar:latest", username="user", password="pass")
         with pytest.raises(requests.exceptions.HTTPError):
-            i._do_request.__wrapped__(i, "http://www.google.com", method=method)
-            getauth.assert_called_once()
-            parseauth.assert_called_once()
+            i._do_request.__wrapped__(i, "http://www.google.com")
+
+        getauth.assert_called_once()
+        parseauth.assert_called_once()
+
+    def test_with_session(self, getauth, parseauth, mocked_requests):
+        r = requests.Response()
+        r.status_code = 200
+        session = create_autospec(requests.Session)
+        session.request.return_value = r
+
+        i = Image("quay.io/foo/bar:latest", username="user", password="pass", session=session)
+        i._do_request.__wrapped__(i, "http://www.google.com")
+
+        session.request.assert_called_once_with(
+            "GET",
+            'http://www.google.com',
+            headers={'Accept': self.expected_accept_header},
+            auth=('user', 'pass'),
+            verify=True,
+        )
+        mocked_requests.request.assert_not_called()
+        getauth.assert_not_called()
+        parseauth.assert_not_called()
 
 class ImageMocks:
     @classmethod

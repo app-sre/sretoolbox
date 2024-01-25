@@ -90,6 +90,8 @@ class Image:
     :param response_cache: (optional) Provide a response cache that acts
                            as a dict
     :param ssl_verify: (optional) Whether to verify the SSL certificate
+    :session: (optional) A requests session to use for all requests, if not
+                         provided, each request will create a new session.
     """
 
     # This is a method dispatcher to handle how to handle responses that are
@@ -103,7 +105,7 @@ class Image:
 
     def __init__(self, url, tag_override=None, username=None, password=None,
                  auth_server=None, response_cache=None, auth_token=None,
-                 ssl_verify=True):
+                 ssl_verify=True, session=None):
         image_data = self._parse_image_url(url)
         self.scheme = image_data['scheme']
         self.registry = image_data['registry']
@@ -111,6 +113,7 @@ class Image:
         self.image = image_data['image']
         self.response_cache = response_cache
         self.ssl_verify = ssl_verify
+        self.session = session
 
         self.auth_token = auth_token
         if tag_override is None:
@@ -185,7 +188,7 @@ class Image:
         return self._cache_digest
 
     @retry(exceptions=(HTTPError, requests.ConnectionError), max_attempts=5)
-    def _do_request(self, url, method=requests.get, headers=None):
+    def _do_request(self, url, method="GET", headers=None):
         # Use any cached tokens, they may still be valid
         request_headers = {
             'Accept': ",".join([
@@ -207,8 +210,9 @@ class Image:
         else:
             auth = self.auth
 
-        response = method(url, headers=request_headers, auth=auth,
-                          verify=self.ssl_verify)
+        request = self.session.request if self.session else requests.request
+        response = request(method, url, headers=request_headers,
+                           auth=auth, verify=self.ssl_verify)
 
         # Unauthorized, meaning we have to acquire a new token
         if response.status_code == 401:
@@ -221,7 +225,7 @@ class Image:
             # Try again, with the new Authorization header
             self.auth_token = self._get_auth(www_auth)
             request_headers['Authorization'] = self.auth_token
-            response = method(url, headers=request_headers)
+            response = request(method, url, headers=request_headers)
 
         self._raise_for_status(response)
         return response
@@ -328,7 +332,7 @@ class Image:
         cached_response = self.response_cache[key]
         header = "Docker-Content-Digest"
 
-        rsp = self._do_request(url, requests.head)
+        rsp = self._do_request(url, "HEAD")
 
         if header not in rsp.headers:
             _LOG.debug("CACHE_MISS %s", url)
@@ -419,11 +423,12 @@ class Image:
         for key, value in www_auth.items():
             url += f'{key}={value}&'
 
-        response = requests.get(url, auth=self.auth)
+        get = self.session.get if self.session else requests.get
+        response = get(url, auth=self.auth)
 
         if response.status_code == 401:
             # Try again without auth
-            response = requests.get(url)
+            response = get(url)
 
         self._raise_for_status(response, error_msg=f'unable to retrieve auth '
                                                    f'token from {url}')
