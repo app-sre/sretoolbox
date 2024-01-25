@@ -190,6 +190,11 @@ class Image:
 
         return self._cache_digest
 
+    def _requester(self):
+        if self.session is not None:
+            return self.session.request
+        return requests.request
+
     @retry(exceptions=(HTTPError, requests.ConnectionError), max_attempts=5)
     def _do_request(self, url, method="GET", headers=None):
         # Use any cached tokens, they may still be valid
@@ -213,7 +218,7 @@ class Image:
         else:
             auth = self.auth
 
-        request = self.session.request if self.session else requests.request
+        request = self._requester()
         response = request(method, url, headers=request_headers, auth=auth,
                            verify=self.ssl_verify, timeout=self.timeout)
 
@@ -427,12 +432,12 @@ class Image:
         for key, value in www_auth.items():
             url += f'{key}={value}&'
 
-        get = self.session.get if self.session else requests.get
-        response = get(url, auth=self.auth, timeout=self.timeout)
+        request = self._requester()
+        response = request("GET", url, auth=self.auth, timeout=self.timeout)
 
         if response.status_code == 401:
             # Try again without auth
-            response = get(url, timeout=self.timeout)
+            response = request("GET", url, timeout=self.timeout)
 
         self._raise_for_status(response, error_msg=f'unable to retrieve auth '
                                                    f'token from {url}')
