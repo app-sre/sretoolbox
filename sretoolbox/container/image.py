@@ -623,6 +623,8 @@ class Image:
         return item in self.tags
 
     def __eq__(self, other):
+        if not isinstance(other, Image):
+            return False
         try:
             manifest = self.manifest
             other_manifest = other.manifest
