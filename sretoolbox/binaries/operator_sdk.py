@@ -28,12 +28,15 @@ class OperatorSDK(Binary):
     """
     Defines the properties of OperatorSDK.
     """
-    binary_template = 'operator-sdk-{version}'
+
+    binary_template = "operator-sdk-{version}"
     system = platform.system().lower()
-    download_url_template = ('https://github.com/operator-framework/'
-                             'operator-sdk/releases/download/'
-                             'v{major}.{minor}.{patch}/'
-                             f'operator-sdk_{system}_amd64')
+    download_url_template = (
+        "https://github.com/operator-framework/"
+        "operator-sdk/releases/download/"
+        "v{major}.{minor}.{patch}/"
+        f"operator-sdk_{system}_amd64"
+    )
 
     def get_version_command(self):
         """
@@ -42,7 +45,7 @@ class OperatorSDK(Binary):
         :return: version command
         :rtype: list
         """
-        return [self.command, 'version']
+        return [self.command, "version"]
 
     def parse_version(self, version):
         """
@@ -55,7 +58,7 @@ class OperatorSDK(Binary):
         :return: the parsed version as a VersionInfo object
         :rtype: VersionInfo
         """
-        opm_version = version.split('"')[1].split('v', 1)[1]
+        opm_version = version.split('"')[1].split("v", 1)[1]
         return VersionInfo.parse(version=opm_version)
 
     def process_download(self, path):

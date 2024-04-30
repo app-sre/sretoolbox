@@ -29,6 +29,7 @@ class KubectlPackage(Binary):
     """
     Defines the properties of KubectlPackage.
     """
+
     system = platform.system().lower()
     machine = platform.machine()
     if machine == "x86_64":

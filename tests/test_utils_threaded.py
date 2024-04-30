@@ -14,8 +14,9 @@
 
 import unittest
 
-from sretoolbox.utils import threaded
 from tests import fixture_function
+
+from sretoolbox.utils import threaded
 
 
 class TestRunThreadStuff(unittest.TestCase):
@@ -28,12 +29,14 @@ class TestRunThreadStuff(unittest.TestCase):
             threaded.run(fixture_function.raiser, [42], 1)
 
     def test_run_catching(self):
-        rs = threaded.run(fixture_function.identity, [42, 43, 44], 1, return_exceptions=True)
+        rs = threaded.run(
+            fixture_function.identity, [42, 43, 44], 1, return_exceptions=True
+        )
         self.assertEqual(rs, [42, 43, 44])
 
     def test_run_return_exceptions(self):
         rs = threaded.run(fixture_function.raiser, [42], 1, return_exceptions=True)
-        self.assertEqual(rs[0].args, ("Oh noes!", ))
+        self.assertEqual(rs[0].args, ("Oh noes!",))
         self.assertEqual(len(rs), 1)
 
     def test_run_normal_sys_exit(self):

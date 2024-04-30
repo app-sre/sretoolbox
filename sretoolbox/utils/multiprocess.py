@@ -15,6 +15,7 @@
 """
 Multiprocessing abstractions.
 """
+
 from concurrent.futures import ProcessPoolExecutor
 from typing import Any, Callable, Iterable, List
 
@@ -68,9 +69,11 @@ def run(
         >>> run(square, iterable, pool_size)
         [1, 4, 9, 16, 25]
     """
-    return pmap(func,
-                iterable,
-                ProcessPoolExecutor,
-                process_pool_size,
-                return_exceptions,
-                **kwargs)
+    return pmap(
+        func,
+        iterable,
+        ProcessPoolExecutor,
+        process_pool_size,
+        return_exceptions,
+        **kwargs,
+    )

@@ -18,9 +18,7 @@ Wrapper around the Skopeo utility.
 
 import logging
 import subprocess
-
 from distutils import spawn
-
 
 _LOG = logging.getLogger(__name__)
 
@@ -36,10 +34,11 @@ class Skopeo:
 
     def __init__(self, dry_run=False):
         self.dry_run = dry_run
-        self.skopeo_cmd = spawn.find_executable('skopeo')
+        self.skopeo_cmd = spawn.find_executable("skopeo")
 
-    def copy(self, src_image, dst_image, src_creds=None, dest_creds=None,
-             copy_all=False):
+    def copy(
+        self, src_image, dst_image, src_creds=None, dest_creds=None, copy_all=False
+    ):
         """
         Runs the skopeo "copy" sub-command.
 
@@ -63,9 +62,14 @@ class Skopeo:
                          Skopeo is running on.
         :type copy_all: bool
         """
-        self._run_skopeo('copy', str(src_image), str(dst_image),
-                         src_creds=src_creds, dest_creds=dest_creds,
-                         all_=copy_all)
+        self._run_skopeo(
+            "copy",
+            str(src_image),
+            str(dst_image),
+            src_creds=src_creds,
+            dest_creds=dest_creds,
+            all_=copy_all,
+        )
 
     def inspect(self, image, creds=None):
         """
@@ -82,13 +86,11 @@ class Skopeo:
                       "username:password".
         :type creds: str
         """
-        self._run_skopeo('inspect', str(image), creds=creds)
+        self._run_skopeo("inspect", str(image), creds=creds)
 
-    def _run_skopeo(self, subcomand, *args,
-                    src_creds=None,
-                    dest_creds=None,
-                    creds=None,
-                    all_=False):
+    def _run_skopeo(
+        self, subcomand, *args, src_creds=None, dest_creds=None, creds=None, all_=False
+    ):
         """
         Helper to streamline the execution of skopeo commands
 
@@ -113,29 +115,30 @@ class Skopeo:
         cmd = [self.skopeo_cmd, subcomand]
 
         if src_creds is not None:
-            cmd.append(f'--src-creds={src_creds}')
+            cmd.append(f"--src-creds={src_creds}")
         if dest_creds is not None:
-            cmd.append(f'--dest-creds={dest_creds}')
+            cmd.append(f"--dest-creds={dest_creds}")
         if creds is not None:
-            cmd.append(f'--creds={creds}')
+            cmd.append(f"--creds={creds}")
         if all_:
-            cmd.append('--all')
+            cmd.append("--all")
         cmd.extend(args)
 
-        if subcomand == 'copy':
+        if subcomand == "copy":
             _LOG.info([subcomand, *args])
             if self.dry_run:
-                return ''
+                return ""
 
-        result = subprocess.run(cmd, check=False, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
+        result = subprocess.run(
+            cmd, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
 
         for line in result.stdout.decode().splitlines():
-            _LOG.debug(' %s', line)
+            _LOG.debug(" %s", line)
 
         if result.returncode:
             for line in result.stderr.decode().splitlines():
-                _LOG.error(' %s', line)
-            raise SkopeoCmdError(f'exit code: {result.returncode}')
+                _LOG.error(" %s", line)
+            raise SkopeoCmdError(f"exit code: {result.returncode}")
 
         return result.stdout

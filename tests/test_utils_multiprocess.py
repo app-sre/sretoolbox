@@ -1,6 +1,9 @@
 import unittest
-from sretoolbox.utils import multiprocess
+
 from tests import fixture_function
+
+from sretoolbox.utils import multiprocess
+
 
 class TestRunProcessStuff(unittest.TestCase):
     def test_run_no_errors(self):
@@ -12,17 +15,26 @@ class TestRunProcessStuff(unittest.TestCase):
             multiprocess.run(fixture_function.raiser, [42, 43, 44], 3)
 
     def test_run_return_exceptions_no_errors(self):
-        rs = multiprocess.run(fixture_function.identity, [42, 43, 44], 3, return_exceptions=True)
+        rs = multiprocess.run(
+            fixture_function.identity, [42, 43, 44], 3, return_exceptions=True
+        )
         self.assertEqual(rs, [42, 43, 44])
 
     def test_run_return_exceptions_with_exceptions(self):
-        rs = multiprocess.run(fixture_function.raiser, [42, 43, 44], 3, return_exceptions=True)
+        rs = multiprocess.run(
+            fixture_function.raiser, [42, 43, 44], 3, return_exceptions=True
+        )
         self.assertEqual(len(rs), 3)
         for r in rs:
-            self.assertEqual(r.args, ("Oh noes!", ))
+            self.assertEqual(r.args, ("Oh noes!",))
 
     def test_run_return_exceptions_mixed_results(self):
-        rs = multiprocess.run(fixture_function.return_int_raise_value_error_otherwise, [42, 43, "Oh noes!"], 3, return_exceptions=True)
+        rs = multiprocess.run(
+            fixture_function.return_int_raise_value_error_otherwise,
+            [42, 43, "Oh noes!"],
+            3,
+            return_exceptions=True,
+        )
         self.assertEqual(len(rs), 3)
         self.assertEqual(rs[0], 42)
         self.assertEqual(rs[1], 43)
@@ -31,10 +43,16 @@ class TestRunProcessStuff(unittest.TestCase):
 
     def test_run_mixed_results(self):
         with self.assertRaises(Exception):
-            multiprocess.run(fixture_function.return_int_raise_value_error_otherwise, [42, "Oh noes!"], 1)
+            multiprocess.run(
+                fixture_function.return_int_raise_value_error_otherwise,
+                [42, "Oh noes!"],
+                1,
+            )
 
     def test_run_return_exceptions_sys_exit(self):
-        rs = multiprocess.run(fixture_function.sys_exit_func, [0, 1], 2, return_exceptions=True)
+        rs = multiprocess.run(
+            fixture_function.sys_exit_func, [0, 1], 2, return_exceptions=True
+        )
         self.assertIsInstance(rs[0], SystemExit)
         self.assertEqual(rs[0].args, (0,))
 

@@ -16,11 +16,11 @@
 Exposes the binary libs for easy access.
 """
 
+from sretoolbox.binaries.kubectl_package import KubectlPackage
 from sretoolbox.binaries.mtcli import Mtcli
 from sretoolbox.binaries.oc import Oc
 from sretoolbox.binaries.operator_sdk import OperatorSDK
 from sretoolbox.binaries.opm import Opm
-from sretoolbox.binaries.kubectl_package import KubectlPackage
 
 __all__ = [
     "Mtcli",

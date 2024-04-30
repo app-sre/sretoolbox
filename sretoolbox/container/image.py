@@ -22,29 +22,25 @@ import re
 from http import HTTPStatus
 
 import requests
-
 from requests.exceptions import HTTPError
 
 from sretoolbox.utils import retry
 
-
 _LOG = logging.getLogger(__name__)
 
-SCHEMA1_MANIFEST_MEDIA_TYPE = \
-    'application/vnd.docker.distribution.manifest.v1+json'
-SCHEMA1_SIGNED_MANIFEST_MEDIA_TYPE = \
-    'application/vnd.docker.distribution.manifest.v1+prettyjws'
-SCHEMA2_MANIFEST_MEDIA_TYPE = \
-    'application/vnd.docker.distribution.manifest.v2+json'
-SCHEMA2_MANIFEST_LIST_MEDIA_TYPE = \
-    'application/vnd.docker.distribution.manifest.list.v2+json'
-OCI_MANIFEST_MEDIA_TYPE = 'application/vnd.oci.image.manifest.v1+json'
-OCI_IMAGE_INDEX_MEDIA_TYPE = 'application/vnd.oci.image.index.v1+json'
+SCHEMA1_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.v1+json"
+SCHEMA1_SIGNED_MANIFEST_MEDIA_TYPE = (
+    "application/vnd.docker.distribution.manifest.v1+prettyjws"
+)
+SCHEMA2_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
+SCHEMA2_MANIFEST_LIST_MEDIA_TYPE = (
+    "application/vnd.docker.distribution.manifest.list.v2+json"
+)
+OCI_MANIFEST_MEDIA_TYPE = "application/vnd.oci.image.manifest.v1+json"
+OCI_IMAGE_INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
 
-SINGLE_ARCH_MEDIA_TYPES = [SCHEMA2_MANIFEST_MEDIA_TYPE,
-                           OCI_MANIFEST_MEDIA_TYPE]
-MULTI_ARCH_MEDIA_TYPES = [SCHEMA2_MANIFEST_LIST_MEDIA_TYPE,
-                          OCI_IMAGE_INDEX_MEDIA_TYPE]
+SINGLE_ARCH_MEDIA_TYPES = [SCHEMA2_MANIFEST_MEDIA_TYPE, OCI_MANIFEST_MEDIA_TYPE]
+MULTI_ARCH_MEDIA_TYPES = [SCHEMA2_MANIFEST_LIST_MEDIA_TYPE, OCI_IMAGE_INDEX_MEDIA_TYPE]
 
 
 class ImageComparisonError(Exception):
@@ -66,8 +62,7 @@ class NoTagForImageByDigest(Exception):
     """
 
     def __init__(self, image):
-        super().__init__(
-            f"Can't determine a unique tag for Image: {str(image)}")
+        super().__init__(f"Can't determine a unique tag for Image: {str(image)}")
 
 
 class ImageInvalidManifestError(Exception):
@@ -105,14 +100,24 @@ class Image:
         "registry.access.redhat.com": "_handle_conditional_request",
     }
 
-    def __init__(self, url, tag_override=None, username=None, password=None,
-                 auth_server=None, response_cache=None, auth_token=None,
-                 ssl_verify=True, session=None, timeout=None):
+    def __init__(
+        self,
+        url,
+        tag_override=None,
+        username=None,
+        password=None,
+        auth_server=None,
+        response_cache=None,
+        auth_token=None,
+        ssl_verify=True,
+        session=None,
+        timeout=None,
+    ):
         image_data = self._parse_image_url(url)
-        self.scheme = image_data['scheme']
-        self.registry = image_data['registry']
-        self.repository = image_data['repository']
-        self.image = image_data['image']
+        self.scheme = image_data["scheme"]
+        self.registry = image_data["registry"]
+        self.repository = image_data["repository"]
+        self.image = image_data["image"]
         self.response_cache = response_cache
         self.ssl_verify = ssl_verify
         self.session = session
@@ -120,19 +125,18 @@ class Image:
 
         self.auth_token = auth_token
         if tag_override is None:
-            self.tag = image_data['tag']
+            self.tag = image_data["tag"]
         else:
             self.tag = tag_override
 
         self._cache_digest = None
         # If the URL was by-digest, we can cache this right away.
-        if image_data['digest']:
+        if image_data["digest"]:
             self._cache_digest = f"{image_data['digest']}"
 
         self.username = username
         self.password = password
-        if all([username is not None,
-                password is not None]):
+        if all([username is not None, password is not None]):
             self.auth = (username, password)
         else:
             self.auth = None
@@ -143,10 +147,10 @@ class Image:
         if self.auth_server is not None and self.auth_server != self.registry:
             self.auth = None
 
-        if self.registry == 'docker.io':
-            self.registry_api = 'https://registry-1.docker.io'
+        if self.registry == "docker.io":
+            self.registry_api = "https://registry-1.docker.io"
         else:
-            self.registry_api = f'https://{self.registry}'
+            self.registry_api = f"https://{self.registry}"
 
         self._cache_tags = None
         self._cache_manifest = None
@@ -172,7 +176,7 @@ class Image:
             _ = self.manifest
 
         if self._cache_content_type is None:
-            raise HTTPError('Content-Type header not found.')
+            raise HTTPError("Content-Type header not found.")
 
         return self._cache_content_type
 
@@ -186,7 +190,7 @@ class Image:
             _ = self.manifest
 
         if self._cache_digest is None:
-            raise HTTPError('Docker-Content-Digest header not found.')
+            raise HTTPError("Docker-Content-Digest header not found.")
 
         return self._cache_digest
 
@@ -199,32 +203,40 @@ class Image:
     def _do_request(self, url, method="GET", headers=None):
         # Use any cached tokens, they may still be valid
         request_headers = {
-            'Accept': ",".join([
-                SCHEMA1_MANIFEST_MEDIA_TYPE,
-                SCHEMA1_SIGNED_MANIFEST_MEDIA_TYPE,
-                SCHEMA2_MANIFEST_MEDIA_TYPE,
-                SCHEMA2_MANIFEST_LIST_MEDIA_TYPE,
-                OCI_MANIFEST_MEDIA_TYPE,
-                OCI_IMAGE_INDEX_MEDIA_TYPE,
-            ])
+            "Accept": ",".join(
+                [
+                    SCHEMA1_MANIFEST_MEDIA_TYPE,
+                    SCHEMA1_SIGNED_MANIFEST_MEDIA_TYPE,
+                    SCHEMA2_MANIFEST_MEDIA_TYPE,
+                    SCHEMA2_MANIFEST_LIST_MEDIA_TYPE,
+                    OCI_MANIFEST_MEDIA_TYPE,
+                    OCI_IMAGE_INDEX_MEDIA_TYPE,
+                ]
+            )
         }
 
         if headers:
             request_headers.update(headers)
 
         if self.auth_token:
-            request_headers['Authorization'] = self.auth_token
+            request_headers["Authorization"] = self.auth_token
             auth = None
         else:
             auth = self.auth
 
         request = self._requester()
-        response = request(method, url, headers=request_headers, auth=auth,
-                           verify=self.ssl_verify, timeout=self.timeout)
+        response = request(
+            method,
+            url,
+            headers=request_headers,
+            auth=auth,
+            verify=self.ssl_verify,
+            timeout=self.timeout,
+        )
 
         # Unauthorized, meaning we have to acquire a new token
         if response.status_code == 401:
-            auth_specs = response.headers.get('Www-Authenticate')
+            auth_specs = response.headers.get("Www-Authenticate")
             if auth_specs is None:
                 self._raise_for_status(response)
 
@@ -232,9 +244,10 @@ class Image:
 
             # Try again, with the new Authorization header
             self.auth_token = self._get_auth(www_auth)
-            request_headers['Authorization'] = self.auth_token
-            response = request(method, url, headers=request_headers,
-                               timeout=self.timeout)
+            request_headers["Authorization"] = self.auth_token
+            response = request(
+                method, url, headers=request_headers, timeout=self.timeout
+            )
 
         self._raise_for_status(response)
         return response
@@ -247,15 +260,15 @@ class Image:
     def _get_manifest(self):
         # Retrieve the image manifest from the internet or from the response
         # cache if it exists.
-        url = f'{self.registry_api}/v2'
+        url = f"{self.registry_api}/v2"
         if self.repository is not None:
-            url += f'/{self.repository}'
+            url += f"/{self.repository}"
         # NOTE(efried): This should never go to the network. If the image was
         # initialized by digest, the `digest` property uses that value.
         reference = self.tag or self.digest
         # NOTE(efried): At least for quay, this returns schemaVersion 1 by tag
         # and 2 by digest.
-        url += f'/{self.image}/manifests/{reference}'
+        url += f"/{self.image}/manifests/{reference}"
 
         if self.response_cache is None or not self._can_response_be_cached():
             return self._do_request(url)
@@ -281,17 +294,17 @@ class Image:
         """
         tags_per_page = 50
 
-        url = f'{self.registry_api}/v2'
+        url = f"{self.registry_api}/v2"
         if self.repository is not None:
-            url += f'/{self.repository}'
-        url += f'/{self.image}/tags/list?n={tags_per_page}'
+            url += f"/{self.repository}"
+        url += f"/{self.image}/tags/list?n={tags_per_page}"
 
         response = self._do_request(url)
-        tags = all_tags = response.json()['tags']
+        tags = all_tags = response.json()["tags"]
 
         # Tags are paginated
         while not len(tags) < tags_per_page:
-            next_page = response.links.get('next')
+            next_page = response.links.get("next")
 
             if next_page is None:
                 break
@@ -301,7 +314,7 @@ class Image:
                 url = f'{self.registry_api}{next_page["url"]}'
             response = self._do_request(url)
 
-            tags = response.json()['tags']
+            tags = response.json()["tags"]
             all_tags.extend(tags)
 
         return all_tags
@@ -367,8 +380,8 @@ class Image:
         :return: True if the current image has the other image as base
         :rtype: bool
         """
-        for layer in other.manifest['fsLayers']:
-            if layer not in self.manifest['fsLayers']:
+        for layer in other.manifest["fsLayers"]:
+            if layer not in self.manifest["fsLayers"]:
                 return False
         return True
 
@@ -386,18 +399,16 @@ class Image:
         """
         if self.content_type not in SINGLE_ARCH_MEDIA_TYPES:
             raise ImageContainsError(
-                f"Unsupported image content type in {self}: "
-                f"'{self.content_type}'"
+                f"Unsupported image content type in {self}: " f"'{self.content_type}'"
             )
 
         if other.content_type not in MULTI_ARCH_MEDIA_TYPES:
             raise ImageContainsError(
-                f"Unsupported image content type in {other}: "
-                f"'{other.content_type}'"
+                f"Unsupported image content type in {other}: " f"'{other.content_type}'"
             )
 
-        for manifest in other.manifest['manifests']:
-            if manifest['digest'] == self.digest:
+        for manifest in other.manifest["manifests"]:
+            if manifest["digest"] == self.digest:
                 return True
 
         return False
@@ -416,8 +427,8 @@ class Image:
                     f"Invalid manifest for {self.url_tag} - "
                     "could not decode manifest as json"
                 ) from exc
-            self._cache_content_type = manifest.headers.get('Content-Type')
-            self._cache_digest = manifest.headers.get('Docker-Content-Digest')
+            self._cache_content_type = manifest.headers.get("Content-Type")
+            self._cache_digest = manifest.headers.get("Docker-Content-Digest")
 
         return self._cache_manifest
 
@@ -430,7 +441,7 @@ class Image:
 
         url = f'{www_auth.pop("realm")}?'
         for key, value in www_auth.items():
-            url += f'{key}={value}&'
+            url += f"{key}={value}&"
 
         request = self._requester()
         response = request("GET", url, auth=self.auth, timeout=self.timeout)
@@ -439,11 +450,12 @@ class Image:
             # Try again without auth
             response = request("GET", url, timeout=self.timeout)
 
-        self._raise_for_status(response, error_msg=f'unable to retrieve auth '
-                                                   f'token from {url}')
+        self._raise_for_status(
+            response, error_msg=f"unable to retrieve auth " f"token from {url}"
+        )
 
         data = response.json()["token"]
-        return f'{scheme} {data}'
+        return f"{scheme} {data}"
 
     @staticmethod
     def _parse_image_url(image_url):
@@ -478,73 +490,75 @@ class Image:
         :rtype: dict
         """
 
-        default_scheme = 'docker://'
-        default_registry = 'docker.io'
-        default_tag = 'latest'
+        default_scheme = "docker://"
+        default_registry = "docker.io"
+        default_tag = "latest"
 
         # The image is either specified by digest (...@sha256:xxxx...) or
         # by tag (...:tag-name). We decide based on the presence of the
         # '@' or the ':'. If we find neither, by-tag is assumed,
         # defaulting to 'latest'.
         parsed_image_url = re.search(
-            r'(?P<scheme>\w+://)?'  # Scheme (optional) e.g. docker://
-            r'(?P<registry>[\w\-]+[.][\w\-.]+)?'  # Registry domain (optional)
-            r'(?(registry)(?P<port_colon>[:]))?'  # Port colon (optional)
-            r'(?(port_colon)(?P<port>[0-9]+))'  # Port (optional)
-            r'(?(registry)(?P<registry_slash>/))'  # Slash after domain:port
-            r'(?P<repository>[\w\-]+)?'  # Repository (optional)
-            r'(?(repository)(?P<repo_slash>/))'  # Slash, if repo is present
-            r'(?P<image>[\w\-./]+)'  # Image path (mandatory)
+            r"(?P<scheme>\w+://)?"  # Scheme (optional) e.g. docker://
+            r"(?P<registry>[\w\-]+[.][\w\-.]+)?"  # Registry domain (optional)
+            r"(?(registry)(?P<port_colon>[:]))?"  # Port colon (optional)
+            r"(?(port_colon)(?P<port>[0-9]+))"  # Port (optional)
+            r"(?(registry)(?P<registry_slash>/))"  # Slash after domain:port
+            r"(?P<repository>[\w\-]+)?"  # Repository (optional)
+            r"(?(repository)(?P<repo_slash>/))"  # Slash, if repo is present
+            r"(?P<image>[\w\-./]+)"  # Image path (mandatory)
             # '@' delimiter iff it's a by-digest URI (optional)
-            r'(?P<digest_at>@)?'
+            r"(?P<digest_at>@)?"
             # Digest ('sha256:' + 64 lowercase hex chars) iff '@' is present
-            r'(?(digest_at)(?P<digest>sha256:[0-9a-f]{64}))'
+            r"(?(digest_at)(?P<digest>sha256:[0-9a-f]{64}))"
             # Tag colon if it's a by-digest URI (optional)
             # Not allowed if we found a digest
-            r'(?(digest)|(?P<tag_colon>:))?'
+            r"(?(digest)|(?P<tag_colon>:))?"
             # Tag (if tag colon is present)
-            r'(?(tag_colon)(?P<tag>[\w\-.]+))'
-            '$', image_url)
+            r"(?(tag_colon)(?P<tag>[\w\-.]+))"
+            "$",
+            image_url,
+        )
 
         if parsed_image_url is None:
             raise AttributeError(f'Not able to parse "{image_url}"')
 
         image_url_struct = parsed_image_url.groupdict()
 
-        if image_url_struct.get('scheme') is None:
-            image_url_struct['scheme'] = default_scheme
+        if image_url_struct.get("scheme") is None:
+            image_url_struct["scheme"] = default_scheme
 
-        if image_url_struct.get('registry') is None:
-            image_url_struct['registry'] = default_registry
+        if image_url_struct.get("registry") is None:
+            image_url_struct["registry"] = default_registry
 
-        port = image_url_struct.get('port')
+        port = image_url_struct.get("port")
         if port is not None:
-            image_url_struct['registry'] += f':{port}'
+            image_url_struct["registry"] += f":{port}"
 
-        if image_url_struct.get('repository') is None:
-            if image_url_struct['registry'] == 'docker.io':
-                image_url_struct['repository'] = 'library'
+        if image_url_struct.get("repository") is None:
+            if image_url_struct["registry"] == "docker.io":
+                image_url_struct["repository"] = "library"
             else:
-                image_url_struct['repository'] = None
+                image_url_struct["repository"] = None
 
         # By-digest URIs don't use tags; but otherwise default to `latest` if
         # absent
-        if all(image_url_struct.get(x) is None for x in ('tag', 'digest')):
-            image_url_struct['tag'] = default_tag
+        if all(image_url_struct.get(x) is None for x in ("tag", "digest")):
+            image_url_struct["tag"] = default_tag
 
         return image_url_struct
 
     @staticmethod
     def _parse_www_auth(value):
         www_authenticate = {}
-        www_authenticate['scheme'], params = value.split(' ', 1)
+        www_authenticate["scheme"], params = value.split(" ", 1)
 
         # According to the RFC6750, the scheme MUST be followed by
         # one or more auth-param values.
         # This regex gets the extra auth-params and adds them to
         # the www_authenticate dictionary
         for item in re.finditer('(?P<key>[^ ,]+)="(?P<value>[^"]+)"', params):
-            www_authenticate[item.group('key')] = item.group('value')
+            www_authenticate[item.group("key")] = item.group("value")
 
         return www_authenticate
 
@@ -555,20 +569,20 @@ class Image:
         if response.status_code < 400:
             return None
 
-        msg = ''
+        msg = ""
         if error_msg is not None:
-            msg += f'{error_msg}: '
+            msg += f"{error_msg}: "
 
-        msg += f'({response.status_code}) {response.reason}'
+        msg += f"({response.status_code}) {response.reason}"
         try:
             content = response.json()
         except json.decoder.JSONDecodeError as details:
             raise HTTPError(msg) from details
 
         if "errors" in content:
-            for error in content['errors']:
+            for error in content["errors"]:
                 msg += f', {error["message"]}'
-        _LOG.debug('[%s, %s]', str(self), msg)
+        _LOG.debug("[%s, %s]", str(self), msg)
         raise HTTPError(msg)
 
     @property
@@ -589,10 +603,10 @@ class Image:
         """
         Returns the image url in the digest format.
         """
-        url_digest = f'{self.registry}'
+        url_digest = f"{self.registry}"
         if self.repository is not None:
-            url_digest += f'/{self.repository}'
-        url_digest += f'/{self.image}@{self.digest}'
+            url_digest += f"/{self.repository}"
+        url_digest += f"/{self.image}@{self.digest}"
         return url_digest
 
     @property
@@ -607,10 +621,10 @@ class Image:
         if self.tag is None:
             raise NoTagForImageByDigest(self)
 
-        url_tag = f'{self.registry}'
+        url_tag = f"{self.registry}"
         if self.repository is not None:
-            url_tag += f'/{self.repository}'
-        url_tag += f'/{self.image}:{self.tag}'
+            url_tag += f"/{self.repository}"
+        url_tag += f"/{self.image}:{self.tag}"
         return url_tag
 
     def __bool__(self):
@@ -631,14 +645,14 @@ class Image:
         except HTTPError as details:
             raise ImageComparisonError(details) from details
 
-        manifest_version = manifest['schemaVersion']
-        other_manifest_version = other_manifest['schemaVersion']
+        manifest_version = manifest["schemaVersion"]
+        other_manifest_version = other_manifest["schemaVersion"]
 
         if manifest_version != other_manifest_version:
             return False
 
         if manifest_version == 1:
-            layers_key = 'fsLayers'
+            layers_key = "fsLayers"
         else:
             manifest_content_type = self.content_type
             other_manifest_content_type = other.content_type
@@ -647,9 +661,9 @@ class Image:
                 return False
 
             if manifest_content_type in SINGLE_ARCH_MEDIA_TYPES:
-                layers_key = 'layers'
+                layers_key = "layers"
             elif manifest_content_type in MULTI_ARCH_MEDIA_TYPES:
-                layers_key = 'manifests'
+                layers_key = "manifests"
             else:
                 raise ImageComparisonError(
                     f"Found unsupported content type {manifest_content_type} "
@@ -662,15 +676,17 @@ class Image:
         return False
 
     def __getitem__(self, item):
-        return Image(url=str(self),
-                     tag_override=str(item),
-                     username=self.username,
-                     password=self.password,
-                     auth_server=self.auth_server,
-                     response_cache=self.response_cache,
-                     auth_token=self.auth_token,
-                     session=self.session,
-                     timeout=self.timeout)
+        return Image(
+            url=str(self),
+            tag_override=str(item),
+            username=self.username,
+            password=self.password,
+            auth_server=self.auth_server,
+            response_cache=self.response_cache,
+            auth_token=self.auth_token,
+            session=self.session,
+            timeout=self.timeout,
+        )
 
     def __iter__(self):
         for tag in self.tags:
@@ -687,4 +703,4 @@ class Image:
             url = self.url_digest
         else:
             url = self.url_tag
-        return f'{self.scheme}{url}'
+        return f"{self.scheme}{url}"

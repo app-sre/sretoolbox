@@ -15,6 +15,7 @@
 """
 Concurrent abstractions.
 """
+
 from concurrent.futures import Executor
 from functools import partial
 from typing import Any, Callable, Iterable, List, Type

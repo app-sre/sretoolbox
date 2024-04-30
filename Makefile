@@ -23,8 +23,8 @@ develop: prepare
 	pipenv install --dev
 
 check:
-	pipenv run flake8 sretoolbox
-	pipenv run pylint sretoolbox
+	pipenv run ruff format sretoolbox
+	pipenv run ruff check sretoolbox
 	pipenv run pipenv run pytest -v --cov=sretoolbox --cov-report=term-missing tests/
 
 clean:

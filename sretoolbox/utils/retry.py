@@ -35,14 +35,12 @@ Functions to add resilience to function calls.
 
 import itertools
 import time
-
 from functools import wraps
 
 
 # Original Code:
 # https://github.com/saltycrane/retry-decorator/blob/a26fe27/retry_decorator.py
-def retry(exceptions=Exception, max_attempts=3, no_retry_exceptions=(),
-          hook=None):
+def retry(exceptions=Exception, max_attempts=3, no_retry_exceptions=(), hook=None):
     """Adds resilience to function calls.
 
     This decorator will retry a function for several attempts if it raises an
@@ -64,8 +62,8 @@ def retry(exceptions=Exception, max_attempts=3, no_retry_exceptions=(),
     :return: decorated function
     :rtype: function
     """
-    def deco_retry(function):
 
+    def deco_retry(function):
         @wraps(function)
         def f_retry(*args, **kwargs):
             for attempt in itertools.count(1):
@@ -80,5 +78,7 @@ def retry(exceptions=Exception, max_attempts=3, no_retry_exceptions=(),
                         hook(exception)
                     time.sleep(attempt)
             return None
+
         return f_retry
+
     return deco_retry
