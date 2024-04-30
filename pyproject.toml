@@ -1,6 +1,6 @@
 [tool.ruff]
 line-length = 88
-target-version = 'py311'
+target-version = 'py38'
 required-version = "0.4.2"
 
 src = ["sretoolbox"]

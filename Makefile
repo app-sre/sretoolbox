@@ -23,8 +23,8 @@ develop: prepare
 	pipenv install --dev
 
 check:
-	pipenv run ruff format sretoolbox
-	pipenv run ruff check sretoolbox
+	pipenv run ruff format --check
+	pipenv run ruff check --no-fix
 	pipenv run pipenv run pytest -v --cov=sretoolbox --cov-report=term-missing tests/
 
 clean:
