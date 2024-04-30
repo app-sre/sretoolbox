@@ -69,12 +69,14 @@ def run(
         >>> run(square, iterable, pool_size)
         [1, 4, 9, 16, 25]
     """
-    return pmap(func,
-                iterable,
-                ThreadPoolExecutor,
-                thread_pool_size,
-                return_exceptions,
-                **kwargs)
+    return pmap(
+        func,
+        iterable,
+        ThreadPoolExecutor,
+        thread_pool_size,
+        return_exceptions,
+        **kwargs,
+    )
 
 
 def estimate_available_thread_pool_size(

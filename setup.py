@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import locale
 import os
 
 from setuptools import find_packages, setup
@@ -20,12 +21,20 @@ BASE_PATH = os.path.dirname(__file__)
 
 
 def get_readme_content():
-    with open(os.path.join(BASE_PATH, "README.rst"), "r") as readme:
+    with open(
+        os.path.join(BASE_PATH, "README.rst"),
+        "r",
+        encoding=locale.getpreferredencoding(False),
+    ) as readme:
         return readme.read()
 
 
 def get_version():
-    with open(os.path.join(BASE_PATH, "VERSION"), "r") as version:
+    with open(
+        os.path.join(BASE_PATH, "VERSION"),
+        "r",
+        encoding=locale.getpreferredencoding(False),
+    ) as version:
         return version.read().strip()
 
 
@@ -51,7 +60,7 @@ setup(
     ],
     install_requires=[
         "requests~=2.22",
-        "semver~=2.13",
+        "semver~=3.0",
         "python-json-logger~=2.0.2",
     ],
 )

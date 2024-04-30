@@ -18,7 +18,6 @@ Abstractions around the OC binary.
 
 import os
 import platform
-
 import tarfile
 
 from semver import VersionInfo
@@ -30,14 +29,17 @@ class Oc(Binary):
     """
     Defines the properties of OC.
     """
-    binary_template = 'oc-{version}'
-    system = 'mac' if platform.system().lower() == 'darwin' else 'linux'
-    download_url_template = ('https://mirror.openshift.com/pub/'
-                             'openshift-v{major}/'
-                             'clients/ocp/'
-                             '{major}.{minor}.{patch}/'
-                             f'openshift-client-{system}-'
-                             '{major}.{minor}.{patch}.tar.gz')
+
+    binary_template = "oc-{version}"
+    system = "mac" if platform.system().lower() == "darwin" else "linux"
+    download_url_template = (
+        "https://mirror.openshift.com/pub/"
+        "openshift-v{major}/"
+        "clients/ocp/"
+        "{major}.{minor}.{patch}/"
+        f"openshift-client-{system}-"
+        "{major}.{minor}.{patch}.tar.gz"
+    )
 
     def get_version_command(self):
         """
@@ -46,7 +48,7 @@ class Oc(Binary):
         :return: version command
         :rtype: list
         """
-        return [self.command, 'version', '--client']
+        return [self.command, "version", "--client"]
 
     def parse_version(self, version):
         """
@@ -61,7 +63,7 @@ class Oc(Binary):
         """
         # Example:
         # Client Version: 4.6.1
-        oc_version = version.split(':')[1].strip()
+        oc_version = version.split(":")[1].strip()
         return VersionInfo.parse(version=oc_version)
 
     def process_download(self, path):
@@ -73,15 +75,15 @@ class Oc(Binary):
         """
         # The downloaded file is actually a
         # tgz. Renaming first.
-        tgz = f'{path}.tgz'
+        tgz = f"{path}.tgz"
         os.rename(path, tgz)
 
         # Now we have to extract OC from the tgz to
         # the download_path
         with tarfile.open(tgz) as file_obj:
-            file_obj.extract('oc', path=self.download_path)
-        bin_path = f'{self.download_path}/oc'
-        oc_path = f'{self.download_path}/{self.binary}'
+            file_obj.extract("oc", path=self.download_path)
+        bin_path = f"{self.download_path}/oc"
+        oc_path = f"{self.download_path}/{self.binary}"
         os.rename(bin_path, oc_path)
 
         # Making it executable

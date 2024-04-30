@@ -20,6 +20,7 @@ import os
 import platform
 
 from semver import VersionInfo
+
 from sretoolbox.binaries.base import Binary
 
 
@@ -27,12 +28,15 @@ class Opm(Binary):
     """
     Defines the properties of OPM.
     """
-    binary_template = 'opm-{version}'
+
+    binary_template = "opm-{version}"
     system = platform.system().lower()
-    download_url_template = ('https://github.com/operator-framework/'
-                             'operator-registry/releases/download/'
-                             'v{major}.{minor}.{patch}/'
-                             f'{system}-amd64-opm')
+    download_url_template = (
+        "https://github.com/operator-framework/"
+        "operator-registry/releases/download/"
+        "v{major}.{minor}.{patch}/"
+        f"{system}-amd64-opm"
+    )
 
     def get_version_command(self):
         """
@@ -41,7 +45,7 @@ class Opm(Binary):
         :return: version command
         :rtype: list
         """
-        return [self.command, 'version']
+        return [self.command, "version"]
 
     def parse_version(self, version):
         """
@@ -54,7 +58,7 @@ class Opm(Binary):
         :return: the parsed version as a VersionInfo object
         :rtype: VersionInfo
         """
-        opm_version = version.split('"')[1].split('v', 1)[1]
+        opm_version = version.split('"')[1].split("v", 1)[1]
         return VersionInfo.parse(version=opm_version)
 
     def process_download(self, path):

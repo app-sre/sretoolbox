@@ -23,6 +23,6 @@ dist
 *.pyo
 __pycache__/
 .pytest_cache/
-pyproject.toml
-Pipfile.lock
 .python-version
+.coverage*
+.ruff_cache/

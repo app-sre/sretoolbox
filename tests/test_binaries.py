@@ -13,11 +13,7 @@
 # limitations under the License.
 import pytest
 
-from sretoolbox.binaries import Mtcli
-from sretoolbox.binaries import Oc
-from sretoolbox.binaries import OperatorSDK
-from sretoolbox.binaries import Opm
-from sretoolbox.binaries import KubectlPackage
+from sretoolbox.binaries import KubectlPackage, Mtcli, Oc, OperatorSDK, Opm
 
 
 @pytest.mark.parametrize(

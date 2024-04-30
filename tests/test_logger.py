@@ -52,7 +52,7 @@ def test_json_logger(params):
         {"name": "text2", "message": "message2"},
     ],
 )
-def test_json_logger(params):
+def test_json_logger_simple(params):
     log_capture_string = io.StringIO()
     logger = get_text_logger(name=params["name"], stream=log_capture_string)
     logger.info(params["message"])

@@ -43,9 +43,7 @@ def get_text_logger(name, stream=sys.stdout, level=logging.INFO):
     :return: text logger
     :rtype: logging.Logger
     """
-    return LoggersSingleton(
-        name=name, kind=LoggerType.TEXT, stream=stream, level=level
-    )
+    return LoggersSingleton(name=name, kind=LoggerType.TEXT, stream=stream, level=level)
 
 
 def get_json_logger(name, stream=sys.stdout, level=logging.INFO):
@@ -61,9 +59,7 @@ def get_json_logger(name, stream=sys.stdout, level=logging.INFO):
     :return: text logger
     :rtype: logging.Logger
     """
-    return LoggersSingleton(
-        name=name, kind=LoggerType.JSON, stream=stream, level=level
-    )
+    return LoggersSingleton(name=name, kind=LoggerType.JSON, stream=stream, level=level)
 
 
 def _setup_text_logger(name, stream, level):
