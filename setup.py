@@ -60,7 +60,7 @@ setup(
     ],
     install_requires=[
         "requests~=2.22",
-        "semver~=2.13",
+        "semver~=3.0",
         "python-json-logger~=2.0.2",
     ],
 )
