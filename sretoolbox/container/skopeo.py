@@ -62,7 +62,7 @@ class Skopeo:
                          Skopeo is running on.
         :type copy_all: bool
         """
-        self._run_skopeo(
+        return self._run_skopeo(
             "copy",
             str(src_image),
             str(dst_image),
@@ -86,7 +86,7 @@ class Skopeo:
                       "username:password".
         :type creds: str
         """
-        self._run_skopeo("inspect", str(image), creds=creds)
+        return self._run_skopeo("inspect", str(image), creds=creds)
 
     def _run_skopeo(
         self, subcomand, *args, src_creds=None, dest_creds=None, creds=None, all_=False
