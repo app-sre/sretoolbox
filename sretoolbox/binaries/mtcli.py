@@ -73,7 +73,7 @@ class Mtcli(Binary):
         # Now we have to extract mtcli from the tgz to
         # the download_path
         with tarfile.open(tgz) as file_obj:
-            file_obj.extract("mtcli", path=self.download_path)
+            file_obj.extract("mtcli", path=self.download_path, filter="data")
         bin_path = f"{self.download_path}/mtcli"
         mtcli_path = f"{self.download_path}/{self.binary}"
         os.rename(bin_path, mtcli_path)
