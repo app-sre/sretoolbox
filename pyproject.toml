@@ -112,3 +112,6 @@ preview = true
 
 [tool.ruff.lint.isort]
 known-first-party = ["sretoolbox"]
+
+[tool.coverage.report]
+fail_under = 80

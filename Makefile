@@ -1,7 +1,3 @@
-# These shell flags are REQUIRED for an early exit in case any program called by make errors
-.SHELLFLAGS=-euo pipefail -c
-SHELL := /bin/bash
-
 all:
 	@echo
 	@echo "Targets:"
