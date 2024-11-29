@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Abstractions around system binaries.
-"""
+"""Abstractions around system binaries."""
 
 import logging
 import os
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from collections import Counter
 from pathlib import Path
 
@@ -31,16 +29,14 @@ LOG = logging.getLogger(__name__)
 
 
 class CommandNotFoundError(Exception):
-    """
-    Used when a binary is not available in the system.
-    """
+    """Used when a binary is not available in the system."""
 
 
-class Binary(metaclass=ABCMeta):
-    """
-    Represents a binary in the system. Tries to find the system binary
-    on the $PATH, in the specified version. When the binary is not
-    available locally, tries to download it.
+class Binary(ABC):
+    """Represents a binary in the system.
+
+    Tries to find the system binary on the $PATH, in the specified version.
+    When the binary is not available locally, tries to download it.
 
     :param version: the semantic version of the binary
     :param download_path: the path where to download the binary to,
@@ -107,7 +103,7 @@ class Binary(metaclass=ABCMeta):
             downloaded_file = self._download()
             self._command = self.process_download(path=downloaded_file)
             if self._command is None:
-                raise CommandNotFoundError(f"Not able to download " f"{self.binary}")
+                raise CommandNotFoundError(f"Not able to download {self.binary}")
 
             # Checking if we have the right version after download
             result = run(cmd=self.get_version_command())
@@ -124,30 +120,22 @@ class Binary(metaclass=ABCMeta):
 
     @property
     def command(self):
-        """
-        The binary command full path.
-        """
+        """The binary command full path."""
         return self._command
 
     @property
     def version(self):
-        """
-        The binary VersionInfo object instance.
-        """
+        """The binary VersionInfo object instance."""
         return self._command_version
 
     @property
     def binary(self):
-        """
-        The binary name.
-        """
+        """The binary name."""
         return self.binary_template.format(version=self.expected_version)
 
     @property
     def download_url(self):
-        """
-        The download URL.
-        """
+        """The download URL."""
         return self.download_url_template.format(
             major=self.expected_version.major,
             minor=self.expected_version.minor,
@@ -157,16 +145,13 @@ class Binary(metaclass=ABCMeta):
         )
 
     def run(self, *args):
-        """
-        Runs binary with arbitrary options.
-        """
+        """Runs binary with arbitrary options."""
         cmd = [self.command, *args]
         return run(cmd)
 
     @staticmethod
     def _compare(expected, actual):
-        """
-        Compares the not None fields from a VersionInfo object.
+        """Compares the not None fields from a VersionInfo object.
 
         :param expected: the expected version.
         :param actual: the actual version
@@ -189,8 +174,7 @@ class Binary(metaclass=ABCMeta):
         return True
 
     def _get_command_path(self, cmd, check_exec=True):
-        """
-        Find a given command in the system.
+        """Find a given command in the system.
 
         :param cmd: The command name.
         :param check_exec: Whether to check if the command is executable.
@@ -209,9 +193,8 @@ class Binary(metaclass=ABCMeta):
         for dir_path in bin_paths:
             cmd_path = dir_path / cmd
             if cmd_path.is_file():
-                if check_exec:
-                    if not os.access(cmd_path, os.R_OK | os.X_OK):
-                        continue
+                if check_exec and not os.access(cmd_path, os.R_OK | os.X_OK):
+                    continue
                 LOG.debug("Found %s", cmd_path)
                 return str(cmd_path.resolve())
 
@@ -228,9 +211,7 @@ class Binary(metaclass=ABCMeta):
 
     @abstractmethod
     def parse_version(self, version):
-        """
-        Parses version string as returned by the command execution
-        to a VersionInfo instance.
+        """Parses version string as returned by the command execution to a VersionInfo.
 
         :param version: the return from the version command
         :type version: str
@@ -241,22 +222,20 @@ class Binary(metaclass=ABCMeta):
 
     @abstractmethod
     def process_download(self, path):
-        """
-        Processes a downloaded file and returns the executable binary path.
+        """Processes a downloaded file and returns the executable binary path.
 
         :param path: The downloaded file path
         :return: The executable binary path.
         """
 
     def _download(self):
-        """
-        Gets the binary from the internet in a specific version.
+        """Gets the binary from the internet in a specific version.
 
         :return: the command full path after downloaded
         :rtype: str or None
         """
         LOG.debug("Downloading %s", self.download_url)
-        response = requests.get(self.download_url, allow_redirects=True)
+        response = requests.get(self.download_url, allow_redirects=True, timeout=60)
         if response.status_code >= 300:
             if response.status_code == 404:
                 LOG.debug(
@@ -268,7 +247,6 @@ class Binary(metaclass=ABCMeta):
             )
 
         bin_path = self.download_path / self.binary
-        with open(bin_path, "wb") as file_obj:
-            file_obj.write(response.content)
+        bin_path.write_bytes(response.content)
         LOG.debug("Downloaded %s", bin_path)
         return str(bin_path)

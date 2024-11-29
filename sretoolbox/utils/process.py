@@ -12,17 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Abstractions around subprocess
-"""
+"""Abstractions around subprocess"""
 
 import subprocess
 
 
 def run(cmd):
-    """
-    Calls subprocess.run with select options.
-    """
-    return subprocess.run(
+    """Calls subprocess.run with select options."""
+    return subprocess.run(  # noqa: S603
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True
     ).stdout.decode()

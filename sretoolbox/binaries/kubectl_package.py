@@ -12,11 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Abstractions around the kubectl-package binary.
-"""
+"""Abstractions around the kubectl-package binary."""
 
-import os
 import platform
 import re
 
@@ -26,16 +23,11 @@ from sretoolbox.binaries.base import Binary
 
 
 class KubectlPackage(Binary):
-    """
-    Defines the properties of KubectlPackage.
-    """
+    """Defines the properties of KubectlPackage."""
 
     system = platform.system().lower()
     machine = platform.machine()
-    if machine == "x86_64":
-        sanitized_machine = "amd64"
-    else:
-        sanitized_machine = machine
+    sanitized_machine = "amd64" if machine == "x86_64" else machine
 
     binary_template = f"kubectl-package_{system}_{sanitized_machine}"
     download_url_template = (
@@ -55,9 +47,7 @@ class KubectlPackage(Binary):
         return [self.command, "--version"]
 
     def parse_version(self, version):
-        """
-        Parses version string as returned by the command execution
-        to a VersionInfo instance.
+        """Parses version string as returned by the command execution to a VersionInfo.
 
         :param version: the return from the version command
         :type version: str
@@ -74,6 +64,6 @@ class KubectlPackage(Binary):
         :param path: The downloaded file path
         :return: The executable binary path.
         """
-        bin_path = f"{self.download_path}/{self.binary}"
-        os.chmod(bin_path, 0o777)
+        bin_path = self.download_path / self.binary
+        bin_path.chmod(0o777)
         return bin_path

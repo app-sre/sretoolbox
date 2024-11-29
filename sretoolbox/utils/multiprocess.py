@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Multiprocessing abstractions.
-"""
+"""Multiprocessing abstractions."""
 
+from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor
-from typing import Any, Callable, Iterable, List
+from typing import Any, Callable
 
 from sretoolbox.utils.concurrent import pmap
 
@@ -26,12 +25,12 @@ def run(
     func: Callable[..., Any],
     iterable: Iterable[Any],
     process_pool_size: int,
-    return_exceptions: bool = False,
+    return_exceptions: bool = False,  # noqa: FBT001
     **kwargs: Any,
-) -> List[Any]:
-    """
-    Applies the provided function `func` to each element in the given
-    `iterable` using a process pool with a maximum of `process_pool_size`.
+) -> list[Any]:
+    """Applies the provided function `func` to each element in the given `iterable`.
+
+    This function uses a process pool with a maximum of `process_pool_size`.
 
     Args:
         func (callable): A function to be applied to the elements of the

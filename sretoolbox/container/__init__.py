@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Exposes the container libs for easy access.
-"""
+"""Exposes the container libs for easy access."""
 
 from sretoolbox.container.image import Image
 from sretoolbox.container.skopeo import Skopeo

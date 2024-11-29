@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Abstractions around container images.
-"""
+"""Abstractions around container images."""
 
 import json
 import logging
@@ -44,36 +42,30 @@ MULTI_ARCH_MEDIA_TYPES = [SCHEMA2_MANIFEST_LIST_MEDIA_TYPE, OCI_IMAGE_INDEX_MEDI
 
 
 class ImageComparisonError(Exception):
-    """
-    Used when the comparison between images is not possible.
-    """
+    """Used when the comparison between images is not possible."""
 
 
 class ImageContainsError(Exception):
-    """
-    Used when the determining if one image contains other is not possible.
-    """
+    """Used when the determining if one image contains other is not possible."""
 
 
-class NoTagForImageByDigest(Exception):
-    """
-    Raised when the Image was constructed with a by-digest URL and an
-    operation is attempted that requires a tag.
+class NoTagForImageByDigestError(Exception):
+    """No tag for image by digest.
+
+    Raised when the Image was constructed with a by-digest URL and an operation is
+    attempted that requires a tag.
     """
 
     def __init__(self, image):
-        super().__init__(f"Can't determine a unique tag for Image: {str(image)}")
+        super().__init__(f"Can't determine a unique tag for Image: {image!s}")
 
 
 class ImageInvalidManifestError(Exception):
-    """
-    Raised when there was an error decoding the manifest payload as json
-    """
+    """Raised when there was an error decoding the manifest payload as json"""
 
 
-class Image:
-    """
-    Represents a container image.
+class Image:  # noqa: PLW1641
+    """Represents a container image.
 
     :param url: The image url. E.g. docker.io/fedora
     :param tag_override: (optional) A specific tag to use instead of
@@ -168,8 +160,8 @@ class Image:
 
     @property
     def content_type(self):
-        """
-        Property to return the Content-Type header from the manifest retrieval.
+        """Return the Content-Type header from the manifest retrieval.
+
         It caches the result.
         """
         if self._cache_content_type is None:
@@ -182,9 +174,9 @@ class Image:
 
     @property
     def digest(self):
-        """
-        Property to return the Docker-Content-Digest header from the manifest
-        retrieval. It caches the result.
+        """Return the Docker-Content-Digest header from the manifest retrieval.
+
+        It caches the result.
         """
         if self._cache_digest is None:
             _ = self.manifest
@@ -203,16 +195,7 @@ class Image:
     def _do_request(self, url, method="GET", headers=None):
         # Use any cached tokens, they may still be valid
         request_headers = {
-            "Accept": ",".join(
-                [
-                    SCHEMA1_MANIFEST_MEDIA_TYPE,
-                    SCHEMA1_SIGNED_MANIFEST_MEDIA_TYPE,
-                    SCHEMA2_MANIFEST_MEDIA_TYPE,
-                    SCHEMA2_MANIFEST_LIST_MEDIA_TYPE,
-                    OCI_MANIFEST_MEDIA_TYPE,
-                    OCI_IMAGE_INDEX_MEDIA_TYPE,
-                ]
-            )
+            "Accept": f"{SCHEMA1_MANIFEST_MEDIA_TYPE},{SCHEMA1_SIGNED_MANIFEST_MEDIA_TYPE},{SCHEMA2_MANIFEST_MEDIA_TYPE},{SCHEMA2_MANIFEST_LIST_MEDIA_TYPE},{OCI_MANIFEST_MEDIA_TYPE},{OCI_IMAGE_INDEX_MEDIA_TYPE}"
         }
 
         if headers:
@@ -289,9 +272,7 @@ class Image:
         return self.response_cache[key]
 
     def _get_tags(self):
-        """
-        Goes to the internet to retrieve all the image tags.
-        """
+        """Goes to the internet to retrieve all the image tags."""
         tags_per_page = 50
 
         url = f"{self.registry_api}/v2"
@@ -311,7 +292,7 @@ class Image:
             if self.registry_api in next_page["url"]:
                 url = next_page["url"]
             else:
-                url = f'{self.registry_api}{next_page["url"]}'
+                url = f"{self.registry_api}{next_page['url']}"
             response = self._do_request(url)
 
             tags = response.json()["tags"]
@@ -371,9 +352,7 @@ class Image:
         return cached_response
 
     def is_from(self, other):
-        """
-        Checks if the the other image served as base image for the
-        current image.
+        """Checks if the the other image served as base image for the current image.
 
         :param other: The base image to check against
         :type other: Image
@@ -386,9 +365,7 @@ class Image:
         return True
 
     def is_part_of(self, other):
-        """
-        Checks if this single-arch image is part of the given multi-arch
-        image
+        """Checks if this single-arch image is part of the given multi-arch image
 
         :param other: The multi-arch image to check against
         :type other: Image
@@ -399,12 +376,12 @@ class Image:
         """
         if self.content_type not in SINGLE_ARCH_MEDIA_TYPES:
             raise ImageContainsError(
-                f"Unsupported image content type in {self}: " f"'{self.content_type}'"
+                f"Unsupported image content type in {self}: '{self.content_type}'"
             )
 
         if other.content_type not in MULTI_ARCH_MEDIA_TYPES:
             raise ImageContainsError(
-                f"Unsupported image content type in {other}: " f"'{other.content_type}'"
+                f"Unsupported image content type in {other}: '{other.content_type}'"
             )
 
         for manifest in other.manifest["manifests"]:
@@ -415,9 +392,7 @@ class Image:
 
     @property
     def manifest(self):
-        """
-        Property to return the manifest. It caches the result.
-        """
+        """Property to return the manifest. It caches the result."""
         if self._cache_manifest is None:
             manifest = self._get_manifest()
             try:
@@ -433,13 +408,13 @@ class Image:
         return self._cache_manifest
 
     def _get_auth(self, www_auth):
-        """
-        Generates the authorization string using the token acquired
-        from the www_auth endpoint.
+        """Generates the authorization string.
+
+        The authorization string uses the token acquired from the www_auth endpoint.
         """
         scheme = www_auth.pop("scheme")
 
-        url = f'{www_auth.pop("realm")}?'
+        url = f"{www_auth.pop('realm')}?"
         for key, value in www_auth.items():
             url += f"{key}={value}&"
 
@@ -451,7 +426,7 @@ class Image:
             response = request("GET", url, timeout=self.timeout)
 
         self._raise_for_status(
-            response, error_msg=f"unable to retrieve auth " f"token from {url}"
+            response, error_msg=f"unable to retrieve auth token from {url}"
         )
 
         data = response.json()["token"]
@@ -459,8 +434,7 @@ class Image:
 
     @staticmethod
     def _parse_image_url(image_url):
-        """
-        Parser to split the image urls in its multiple components.
+        """Parser to split the image urls in its multiple components.
 
         Images are provided as URLs. E.g.:
             - docker.io/fedora
@@ -489,7 +463,6 @@ class Image:
                  those not provided.
         :rtype: dict
         """
-
         default_scheme = "docker://"
         default_registry = "docker.io"
         default_tag = "latest"
@@ -516,7 +489,7 @@ class Image:
             r"(?(digest)|(?P<tag_colon>:))?"
             # Tag (if tag colon is present)
             r"(?(tag_colon)(?P<tag>[\w\-.]+))"
-            "$",
+            r"$",
             image_url,
         )
 
@@ -557,17 +530,15 @@ class Image:
         # one or more auth-param values.
         # This regex gets the extra auth-params and adds them to
         # the www_authenticate dictionary
-        for item in re.finditer('(?P<key>[^ ,]+)="(?P<value>[^"]+)"', params):
+        for item in re.finditer(r'(?P<key>[^ ,]+)="(?P<value>[^"]+)"', params):
             www_authenticate[item.group("key")] = item.group("value")
 
         return www_authenticate
 
     def _raise_for_status(self, response, error_msg=None):
-        """
-        Includes the error messages, important for a registry
-        """
+        """Includes the error messages, important for a registry"""
         if response.status_code < 400:
-            return None
+            return
 
         msg = ""
         if error_msg is not None:
@@ -581,15 +552,13 @@ class Image:
 
         if "errors" in content:
             for error in content["errors"]:
-                msg += f', {error["message"]}'
+                msg += f", {error['message']}"
         _LOG.debug("[%s, %s]", str(self), msg)
         raise HTTPError(msg)
 
     @property
     def tags(self):
-        """
-        Returns the list of tags.
-        """
+        """Returns the list of tags."""
         if self._cache_tags is None:
             try:
                 self._cache_tags = self._get_tags()
@@ -600,9 +569,7 @@ class Image:
 
     @property
     def url_digest(self):
-        """
-        Returns the image url in the digest format.
-        """
+        """Returns the image url in the digest format."""
         url_digest = f"{self.registry}"
         if self.repository is not None:
             url_digest += f"/{self.repository}"
@@ -615,11 +582,11 @@ class Image:
         Returns the image url in the tag format.
 
         If we were constructed with a by-digest URL, this will raise
-        NoTagForImageByDigest since there may be more than one tag for a given
+        NoTagForImageByDigestError since there may be more than one tag for a given
         image.
         """
         if self.tag is None:
-            raise NoTagForImageByDigest(self)
+            raise NoTagForImageByDigestError(self)
 
         url_tag = f"{self.registry}"
         if self.repository is not None:
@@ -670,10 +637,7 @@ class Image:
                     "while comparing"
                 )
 
-        if manifest[layers_key] == other_manifest[layers_key]:
-            return True
-
-        return False
+        return manifest[layers_key] == other_manifest[layers_key]
 
     def __getitem__(self, item):
         return Image(
@@ -689,8 +653,7 @@ class Image:
         )
 
     def __iter__(self):
-        for tag in self.tags:
-            yield tag
+        yield from self.tags
 
     def __len__(self):
         return len(self.tags)
@@ -699,8 +662,5 @@ class Image:
         return f"{self.__class__.__name__}(url='{self}')"
 
     def __str__(self):
-        if self.tag is None:
-            url = self.url_digest
-        else:
-            url = self.url_tag
+        url = self.url_digest if self.tag is None else self.url_tag
         return f"{self.scheme}{url}"

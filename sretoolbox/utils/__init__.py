@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Exposes the utilities for easy access.
-"""
+"""Exposes the utilities for easy access."""
 
 from sretoolbox.utils.datatransformation import replace_values
 from sretoolbox.utils.process import run
