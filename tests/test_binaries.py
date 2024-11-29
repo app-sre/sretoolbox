@@ -11,39 +11,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
+from pathlib import Path
+
 import pytest
 
 from sretoolbox.binaries import KubectlPackage, Mtcli, Oc, OperatorSDK, Opm
 
 
 @pytest.mark.parametrize(
-    "params",
+    ("instance", "version"),
     [
-        {
-            "instance": Mtcli,
-            "version": "0.0.0",
-        },
-        {
-            "instance": Mtcli,
-            "version": "0.10.0",
-        },
-        {
-            "instance": Oc,
-            "version": "4.6.1",
-        },
-        {
-            "instance": Opm,
-            "version": "1.15.1",
-        },
-        {
-            "instance": OperatorSDK,
-            "version": "1.4.2",
-        },
-        {
-            "instance": KubectlPackage,
-            "version": "1.4.0",
-        },
+        (Mtcli, "0.0.0"),
+        (Mtcli, "0.10.0"),
+        (Oc, "4.6.1"),
+        (Opm, "1.15.1"),
+        (OperatorSDK, "1.4.2"),
+        (KubectlPackage, "1.4.0"),
     ],
 )
-def test_download_binaries(params):
-    _ = params["instance"](version=params["version"], download_path="/tmp")
+def test_download_binaries(
+    instance: KubectlPackage | Mtcli | Oc | OperatorSDK | Opm,
+    version: str,
+    tmp_path: Path,
+):
+    _ = instance(version=version, download_path=tmp_path)

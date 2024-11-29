@@ -68,9 +68,8 @@ class KubectlPackage(Binary):
         match = re.search(r"\d+\.\d+\.\d+", version)
         return VersionInfo.parse(version=match.group(0) if match else "")
 
-    def process_download(self, path):
-        """
-        Processes a downloaded file and returns the executable binary path.
+    def process_download(self, path):  # noqa: ARG002
+        """Processes a downloaded file and returns the executable binary path.
 
         :param path: The downloaded file path
         :return: The executable binary path.

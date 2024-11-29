@@ -1,7 +1,7 @@
 #!/bin/bash
 
-set -e
-
-python3 -m pip install --user twine wheel
-python3 setup.py bdist_wheel
-python3 -m twine upload dist/*
+docker build -t sretoolbox -f Dockerfile \
+    --target pypi \
+    --build-arg UV_PUBLISH_USERNAME="$TWINE_USERNAME" \
+    --build-arg UV_PUBLISH_PASSWORD="$TWINE_PASSWORD" \
+    .

@@ -5,29 +5,19 @@ SHELL := /bin/bash
 all:
 	@echo
 	@echo "Targets:"
-	@echo "prepare:      Installs pipenv."
-	@echo "install:      Installs the sretoolbox package and its dependencies."
 	@echo "develop:      Installs the sretoolbox package, its dependencies and its development dependencies."
 	@echo "check:        Runs the style check, the code check and the tests."
 	@echo "clean:        Removes the virtualenv and python artifacts."
 	@echo
 
-
-prepare:
-	pip install pipenv --user --upgrade
-
-install: prepare
-	pipenv install
-
-develop: prepare
-	pipenv install --dev
+develop:
+	uv sync --python 3.9
 
 check:
-	pipenv run ruff format --check
-	pipenv run ruff check --no-fix
-	pipenv run pipenv run pytest -v --cov=sretoolbox --cov-report=term-missing tests/
+	uv run ruff format --check
+	uv run ruff check --no-fix
+	uv run pytest -v --cov=sretoolbox --cov-report=term-missing tests/
 
 clean:
-	pipenv --rm
 	find . -type d \( -name "build" -o -name "dist" -o -name "*.egg-info" \) -exec rm -fr {} +
 	find . \( -name "*.pyc" -o -name "*.pyo" -o -name "__pycache__" \) -exec rm -fr {} +
