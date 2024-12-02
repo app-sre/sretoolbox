@@ -1,3 +1,4 @@
+# ruff: noqa: S105,S106,SLF001,PLR2004,PTH123,FURB101,FBT003
 # Copyright 2021 Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -210,7 +211,7 @@ class TestContainer:
         image = Image(f"quay.io/foo/bar@{A_SHA}")
         with pytest.raises(Exception) as e:
             _ = image.url_tag
-        assert e.typename == "NoTagForImageByDigest"
+        assert e.typename == "NoTagForImageByDigestError"
 
     def test_getitem(self):
         session = create_autospec(requests.Session)
@@ -331,7 +332,7 @@ class TestRequestGet:
 class ImageMocks:
     @classmethod
     @pytest.fixture
-    def v1_image_mock(self, requests_mock):
+    def v1_image_mock(cls, requests_mock):
         with open(
             "tests/fixtures/manifests/v1-image.json",
             encoding=locale.getpreferredencoding(False),
@@ -352,7 +353,7 @@ class ImageMocks:
 
     @classmethod
     @pytest.fixture
-    def v2_image_mock(self, requests_mock):
+    def v2_image_mock(cls, requests_mock):
         with open(
             "tests/fixtures/manifests/v2-image.json",
             encoding=locale.getpreferredencoding(False),
@@ -376,7 +377,7 @@ class ImageMocks:
 
     @classmethod
     @pytest.fixture
-    def v2_fat_image_mock(self, requests_mock):
+    def v2_fat_image_mock(cls, requests_mock):
         with open(
             "tests/fixtures/manifests/v2-fat-image.json",
             encoding=locale.getpreferredencoding(False),
@@ -398,7 +399,7 @@ class ImageMocks:
 
     @classmethod
     @pytest.fixture
-    def oci_image_mock(self, requests_mock):
+    def oci_image_mock(cls, requests_mock):
         with open(
             "tests/fixtures/manifests/oci-image.json",
             encoding=locale.getpreferredencoding(False),
@@ -422,7 +423,7 @@ class ImageMocks:
 
     @classmethod
     @pytest.fixture
-    def oci_fat_image_mock(self, requests_mock):
+    def oci_fat_image_mock(cls, requests_mock):
         with open(
             "tests/fixtures/manifests/oci-fat-image.json",
             encoding=locale.getpreferredencoding(False),
@@ -442,7 +443,7 @@ class ImageMocks:
 
     @classmethod
     @pytest.fixture
-    def no_headers_image_mock(self, requests_mock):
+    def no_headers_image_mock(cls, requests_mock):
         with open(
             "tests/fixtures/manifests/v2-image.json",
             encoding=locale.getpreferredencoding(False),
@@ -461,7 +462,7 @@ class ImageMocks:
 
     @classmethod
     @pytest.fixture
-    def image_with_digest_mock(self, requests_mock):
+    def image_with_digest_mock(cls, requests_mock):
         with open(
             "tests/fixtures/manifests/v2-image.json",
             encoding=locale.getpreferredencoding(False),
@@ -484,7 +485,7 @@ class ImageMocks:
 
     @classmethod
     @pytest.fixture
-    def dockerhub_image_mock(self, requests_mock):
+    def dockerhub_image_mock(cls, requests_mock):
         with open(
             "tests/fixtures/manifests/v2-image.json",
             encoding=locale.getpreferredencoding(False),
@@ -514,7 +515,7 @@ class ImageMocks:
 
     @classmethod
     @pytest.fixture
-    def redhat_registry_image_mock(self, requests_mock):
+    def redhat_registry_image_mock(cls, requests_mock):
         with open(
             "tests/fixtures/manifests/ubi8-python39-manifest.json",
             encoding=locale.getpreferredencoding(False),
@@ -522,7 +523,7 @@ class ImageMocks:
             manifest = f.read()
 
         manifest_url = (
-            "https://registry.access.redhat.com/" "v2/ubi8/python-39/manifests/latest"
+            "https://registry.access.redhat.com/v2/ubi8/python-39/manifests/latest"
         )
 
         headers = {
@@ -555,7 +556,7 @@ class ImageMocks:
 
     @classmethod
     @pytest.fixture
-    def invalid_image_manifest_mock(self, requests_mock):
+    def invalid_image_manifest_mock(cls, requests_mock):
         with open(
             "tests/fixtures/manifests/invalid-image-manifest.json",
             encoding=locale.getpreferredencoding(False),
@@ -801,21 +802,21 @@ class TestManifestAccessors:
 
     def test_manifest_cached(self, image_mock):
         image = Image(image_mock["url"])
-        for i in range(0, 4):
+        for _i in range(4):
             _ = image.manifest
 
         assert image_mock["mock"].call_count == 1
 
     def test_content_type_cached(self, image_mock):
         image = Image(image_mock["url"])
-        for i in range(0, 4):
+        for _i in range(4):
             _ = image.content_type
 
         assert image_mock["mock"].call_count == 1
 
     def test_digest_cached(self, image_mock):
         image = Image(image_mock["url"])
-        for i in range(0, 4):
+        for _i in range(4):
             _ = image.digest
 
         assert image_mock["mock"].call_count == 1

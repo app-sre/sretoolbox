@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Wrapper around the Skopeo utility.
-"""
+"""Wrapper around the Skopeo utility."""
 
 import logging
 import subprocess
@@ -24,9 +22,7 @@ _LOG = logging.getLogger(__name__)
 
 
 class SkopeoCmdError(Exception):
-    """
-    Indicates that the skopeo command failed.
-    """
+    """Indicates that the skopeo command failed."""
 
 
 class Skopeo:
@@ -39,8 +35,7 @@ class Skopeo:
     def copy(
         self, src_image, dst_image, src_creds=None, dest_creds=None, copy_all=False
     ):
-        """
-        Runs the skopeo "copy" sub-command.
+        """Runs the skopeo "copy" sub-command.
 
         The skopeo "copy" pulls the source image from the online repository
         and pushes it to the destination image online repository.
@@ -72,8 +67,7 @@ class Skopeo:
         )
 
     def inspect(self, image, creds=None):
-        """
-        Runs the skopeo "inspect" sub-command.
+        """Runs the skopeo "inspect" sub-command.
 
         The skopeo "inspect" returns low-level information about the image.
         This implementation only checks that the command was successful,
@@ -91,8 +85,7 @@ class Skopeo:
     def _run_skopeo(
         self, subcomand, *args, src_creds=None, dest_creds=None, creds=None, all_=False
     ):
-        """
-        Helper to streamline the execution of skopeo commands
+        """Helper to streamline the execution of skopeo commands
 
         :param subcomand: The skopeo subcommand to execute.
                           E.g. inspect, copy, ...
@@ -129,9 +122,7 @@ class Skopeo:
             if self.dry_run:
                 return ""
 
-        result = subprocess.run(
-            cmd, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
+        result = subprocess.run(cmd, check=False, capture_output=True)  # noqa: S603
 
         for line in result.stdout.decode().splitlines():
             _LOG.debug(" %s", line)

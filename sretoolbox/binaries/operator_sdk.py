@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Abstractions around the OperatorSDK binary.
-"""
+"""Abstractions around the OperatorSDK binary."""
 
 import os
 import platform
@@ -25,9 +23,7 @@ from sretoolbox.binaries.base import Binary
 
 
 class OperatorSDK(Binary):
-    """
-    Defines the properties of OperatorSDK.
-    """
+    """Defines the properties of OperatorSDK."""
 
     binary_template = "operator-sdk-{version}"
     system = platform.system().lower()
@@ -48,9 +44,7 @@ class OperatorSDK(Binary):
         return [self.command, "version"]
 
     def parse_version(self, version):
-        """
-        Parses version string as returned by the command execution
-        to a VersionInfo instance.
+        """Parses version string as returned by the command execution to a VersionInfo.
 
         :param version: the return from the version command
         :type version: str
@@ -68,5 +62,5 @@ class OperatorSDK(Binary):
         :param path: The downloaded file path
         :return: The executable binary path.
         """
-        os.chmod(path, 0o777)
+        os.chmod(path, 0o777)  # noqa: S103
         return path

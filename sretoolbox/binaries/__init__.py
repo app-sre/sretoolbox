@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Exposes the binary libs for easy access.
-"""
+"""Exposes the binary libs for easy access."""
 
 from sretoolbox.binaries.kubectl_package import KubectlPackage
 from sretoolbox.binaries.mtcli import Mtcli
@@ -23,9 +21,9 @@ from sretoolbox.binaries.operator_sdk import OperatorSDK
 from sretoolbox.binaries.opm import Opm
 
 __all__ = [
+    "KubectlPackage",
     "Mtcli",
     "Oc",
     "OperatorSDK",
     "Opm",
-    "KubectlPackage",
 ]

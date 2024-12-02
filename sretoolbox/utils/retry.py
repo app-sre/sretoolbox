@@ -29,9 +29,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""
-Functions to add resilience to function calls.
-"""
+"""Functions to add resilience to function calls."""
 
 import itertools
 import time
@@ -69,11 +67,11 @@ def retry(exceptions=Exception, max_attempts=3, no_retry_exceptions=(), hook=Non
             for attempt in itertools.count(1):
                 try:
                     return function(*args, **kwargs)
-                except no_retry_exceptions as exception:
-                    raise exception
-                except exceptions as exception:  # pylint: disable=broad-except
+                except no_retry_exceptions:  # noqa: PERF203
+                    raise
+                except exceptions as exception:
                     if attempt > max_attempts - 1:
-                        raise exception
+                        raise
                     if callable(hook):
                         hook(exception)
                     time.sleep(attempt)

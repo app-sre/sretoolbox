@@ -1,3 +1,4 @@
+# ruff: noqa:A005
 # Copyright 2021 Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,26 +13,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Concurrent abstractions.
-"""
+"""Concurrent abstractions."""
 
+from collections.abc import Iterable
 from concurrent.futures import Executor
 from functools import partial
-from typing import Any, Callable, Iterable, List, Type
+from typing import Any, Callable
 
-from sretoolbox.utils.exception import SystemExitWrapper
+from sretoolbox.utils.exception import SystemExitWrapperError
 
 
 def pmap(
     func: Callable[..., Any],
     iterable: Iterable[Any],
-    executor: Type[Executor],
+    executor: type[Executor],
     pool_size: int,
-    return_exceptions: bool = False,
+    return_exceptions: bool = False,  # noqa: FBT001
     **kwargs: Any,
-) -> List[Any]:
-    """
+) -> list[Any]:
+    """Like map but with a pool of workers.
+
     Applies the provided function `func` to each element in the given
     `iterable` using a pool with a maximum of `pool_size`.
 
@@ -77,20 +78,17 @@ def pmap(
         >>> pmap(square, iterable, executor, pool_size)
         [1, 4, 9, 16, 25]
     """
-    if return_exceptions:
-        tracer = _catching_traceback
-    else:
-        tracer = _full_traceback
+    tracer = _catching_traceback if return_exceptions else _full_traceback
     func_partial = partial(tracer, func, **kwargs)
 
     with executor(pool_size) as pool:
         try:
             return list(pool.map(func_partial, iterable))
-        except SystemExitWrapper as details:
+        except SystemExitWrapperError as details:
             # a SystemExitWrapper is just a wrapper around a SystemExit
             # so we can catch it here reliably and propagate the actual
             # SystemExit as is
-            raise details.original_sys_exit_exception
+            raise details.original_sys_exit_exception from None
 
 
 def _catching_traceback(
@@ -100,8 +98,7 @@ def _catching_traceback(
 ) -> Any:
     try:
         return func(*args, **kwargs)
-    # pylint: disable=broad-except
-    except BaseException as details:
+    except BaseException as details:  # noqa: BLE001
         return details
 
 
@@ -118,6 +115,4 @@ def _full_traceback(
         # therefore we need to catch it here, wrap it in a regular
         # exception and unpack it again once the pool has finished
         # all tasks
-        raise SystemExitWrapper(  # pylint: disable=raise-missing-from
-            details
-        )
+        raise SystemExitWrapperError(details) from None

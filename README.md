@@ -1,63 +1,64 @@
-SRE Toolbox
-===========
+
+# SRE Toolbox
 
 Set of libraries commonly used by multiple SRE projects:
 
 - ``container.Image``: class for container image inspection.
-- ``container.Skopeo``: wrapper around
-  `Skopeo <https://github.com/containers/skopeo>`_.
+- ``container.Skopeo``: wrapper around [Skopeo](https://github.com/containers/skopeo).
 - ``utils.replace_values``: deep replace of object values according to values map.
 - ``utils.retry``: decorator to add resilience to function calls.
 
-Install
--------
+## Install
 
-From PyPI::
+From PyPI:
 
-    $ pip install sretoolbox
+```bash
+pip install sretoolbox
+```
 
-From source::
+From source:
 
-    $ python setup.py install
+```bash
+python setup.py install
+```
 
+## Usage
 
-Use
----
+Just import the library you want. Example:
 
-Just import the library you want. Example::
+```python
+>>> from sretoolbox import container
+>>> image = container.Image('fedora')
+>>> if image:
+...     print('Image exists!')
+...
+Image exists!
+>>>
+```
 
+## Development
 
-    >>> from sretoolbox import container
-    >>> image = container.Image('fedora')
-    >>> if image:
-    ...     print('Image exists!')
-    ...
-    Image exists!
-    >>>
+Install the development requirements:
 
-Develop
--------
+```bash
+make develop
+```
 
-Install the development requirements::
+Run the code checks and tests:
 
-    $  make develop
+```bash
+make check
+```
 
+## Release
 
-Run the code checks and tests::
-
-    $  make check
-
-Release
--------
-
-Edit the `VERSION` file and change the new version. Submit a pull
+Bump the version number in `pyproject.toml`. Submit a pull
 request to master. When it is merged, create a tag and push it to
 `app-sre/sretoolbox`.
 
 This will trigger a CI job that will publish the package on pypi.
 
-License
--------
+## License
 
 The default license of the code in this repository is
 [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0).

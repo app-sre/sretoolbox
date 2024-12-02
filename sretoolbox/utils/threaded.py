@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Threading abstractions.
-"""
+"""Threading abstractions."""
 
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Callable, Iterable, List
+from typing import Any, Callable
 
 from sretoolbox.utils.concurrent import pmap
 
@@ -26,12 +25,12 @@ def run(
     func: Callable[..., Any],
     iterable: Iterable[Any],
     thread_pool_size: int,
-    return_exceptions: bool = False,
+    return_exceptions: bool = False,  # noqa: FBT001
     **kwargs: Any,
-) -> List[Any]:
-    """
-    Applies the provided function `func` to each element in the given
-    `iterable` using a thread pool with a maximum of `thread_pool_size`.
+) -> list[Any]:
+    """Applies the provided function `func` to each element in the given `iterable`.
+
+    This function uses a thread pool with a maximum of `thread_pool_size`.
 
     Args:
         func (callable): A function to be applied to the elements of the
@@ -83,7 +82,9 @@ def estimate_available_thread_pool_size(
     thread_pool_size: int,
     targets_len: int,
 ) -> int:
-    """estimates available thread pool size based when threading
+    """Estimates available thread pool size.
+
+    Estimates available thread pool size based when threading
     is also used in nested functions (targets)
 
     If there are 20 threads and only 3 targets,

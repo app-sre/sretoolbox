@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Common Exceptions
-"""
+"""Common Exceptions"""
 
 
-class SystemExitWrapper(Exception):
-    """
-    Acts as a wrapper to a SystemExit exception.
+class SystemExitWrapperError(Exception):
+    """Acts as a wrapper to a SystemExit exception.
+
     SystemExit exceptions are special in a way that they do not inherit from
     but rather BaseException. As such, they are handled differently in the
     threading and multiprocessing Pools. Raising a SystemExit an exception

@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Abstractions around the OC binary.
-"""
+"""Abstractions around the OC binary."""
 
 import os
 import platform
@@ -26,9 +24,7 @@ from sretoolbox.binaries.base import Binary
 
 
 class Oc(Binary):
-    """
-    Defines the properties of OC.
-    """
+    """Defines the properties of OC."""
 
     binary_template = "oc-{version}"
     system = "mac" if platform.system().lower() == "darwin" else "linux"
@@ -51,9 +47,7 @@ class Oc(Binary):
         return [self.command, "version", "--client"]
 
     def parse_version(self, version):
-        """
-        Parses version string as returned by the command execution
-        to a VersionInfo instance.
+        """Parses version string as returned by the command execution to a VersionInfo.
 
         :param version: the return from the version command
         :type version: str
@@ -81,12 +75,12 @@ class Oc(Binary):
         # Now we have to extract OC from the tgz to
         # the download_path
         with tarfile.open(tgz) as file_obj:
-            file_obj.extract("oc", path=self.download_path)
+            file_obj.extract("oc", path=self.download_path, filter="data")
         bin_path = f"{self.download_path}/oc"
         oc_path = f"{self.download_path}/{self.binary}"
         os.rename(bin_path, oc_path)
 
         # Making it executable
-        os.chmod(oc_path, 0o777)
+        os.chmod(oc_path, 0o777)  # noqa: S103
 
         return oc_path

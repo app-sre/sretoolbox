@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-JSON and Text loggers abstractions.
-"""
+"""JSON and Text loggers abstractions."""
 
 import logging
 import sys
@@ -82,7 +80,6 @@ def _setup_json_logger(name, stream, level):
     return res
 
 
-# pylint: disable=too-few-public-methods
 class LoggersSingleton:
     """Singleton wrapper around loggers."""
 

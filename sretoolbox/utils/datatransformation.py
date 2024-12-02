@@ -12,14 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Utilities to transform data.
-"""
+"""Utilities to transform data."""
 
 
 def replace_values(obj, replace_map):
-    """
-    Deep replace of object values according to provided map.
+    """Deep replace of object values according to provided map.
 
     :param obj: the object to have the values replaced
     :param replace_map: the map of values with their replacements

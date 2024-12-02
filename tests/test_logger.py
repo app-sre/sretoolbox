@@ -38,7 +38,7 @@ def test_json_logger(params):
     # get dict from string
     log_contents = log_capture_string.getvalue()
     str_dict = log_contents[log_contents.find("{") :]
-    d = eval(str_dict)
+    d = eval(str_dict)  # noqa: S307
 
     assert d["message"] == params["message"]
     for k, v in params["extra"].items():
