@@ -597,8 +597,10 @@ class Image:  # noqa: PLW1641
     def __bool__(self):
         try:
             return bool(self.manifest)
-        except HTTPError:
-            return False
+        except HTTPError as e:
+            if e.response.status_code == 404:
+                return False
+            raise
 
     def __contains__(self, item):
         return item in self.tags
