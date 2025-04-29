@@ -394,16 +394,25 @@ class Image:  # noqa: PLW1641
     def manifest(self):
         """Property to return the manifest. It caches the result."""
         if self._cache_manifest is None:
-            manifest = self._get_manifest()
             try:
+                manifest = self._get_manifest()
                 self._cache_manifest = manifest.json()
+                self._cache_content_type = manifest.headers.get("Content-Type")
+                self._cache_digest = manifest.headers.get("Docker-Content-Digest")
+            except HTTPError as e:
+                if e.response.status_code == 401:
+                    raise HTTPError(
+                        f"Authentication failed for registry: {self.registry}. "
+                        "Ensure the registry is included in the pull-secret."
+                    ) from e
+                if e.response.status_code == 404:
+                    return None  # Manifest not found
+                raise
             except json.decoder.JSONDecodeError as exc:
                 raise ImageInvalidManifestError(
                     f"Invalid manifest for {self.url_tag} - "
                     "could not decode manifest as json"
                 ) from exc
-            self._cache_content_type = manifest.headers.get("Content-Type")
-            self._cache_digest = manifest.headers.get("Docker-Content-Digest")
 
         return self._cache_manifest
 
@@ -550,6 +559,9 @@ class Image:  # noqa: PLW1641
         except json.decoder.JSONDecodeError as details:
             raise HTTPError(msg) from details
 
+        if response.status_code == 401:
+            msg += " - Authentication failed. Check if the registry is included in the pull-secret."
+
         if "errors" in content:
             for error in content["errors"]:
                 msg += f", {error['message']}"
@@ -595,12 +607,7 @@ class Image:  # noqa: PLW1641
         return url_tag
 
     def __bool__(self):
-        try:
-            return bool(self.manifest)
-        except HTTPError as e:
-            if e.response.status_code == 404:
-                return False
-            raise
+        return self.manifest is not None
 
     def __contains__(self, item):
         return item in self.tags
