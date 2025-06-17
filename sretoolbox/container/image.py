@@ -396,23 +396,19 @@ class Image:  # noqa: PLW1641
         if self._cache_manifest is None:
             try:
                 manifest = self._get_manifest()
-                self._cache_manifest = manifest.json()
-                self._cache_content_type = manifest.headers.get("Content-Type")
-                self._cache_digest = manifest.headers.get("Docker-Content-Digest")
             except HTTPError as e:
-                if e.response.status_code == 401:
-                    raise HTTPError(
-                        f"Authentication failed for registry: {self.registry}. "
-                        "Ensure the registry is included in the pull-secret."
-                    ) from e
-                if e.response.status_code == 404:
-                    return None  # Manifest not found
+                if e.response and e.response.status_code == HTTPStatus.NOT_FOUND:
+                    return None
                 raise
-            except json.decoder.JSONDecodeError as exc:
+            try:
+                self._cache_manifest = manifest.json()
+            except requests.exceptions.JSONDecodeError as exc:
                 raise ImageInvalidManifestError(
                     f"Invalid manifest for {self.url_tag} - "
                     "could not decode manifest as json"
                 ) from exc
+            self._cache_content_type = manifest.headers.get("Content-Type")
+            self._cache_digest = manifest.headers.get("Docker-Content-Digest")
 
         return self._cache_manifest
 
@@ -546,27 +542,20 @@ class Image:  # noqa: PLW1641
 
     def _raise_for_status(self, response, error_msg=None):
         """Includes the error messages, important for a registry"""
-        if response.status_code < 400:
-            return
-
-        msg = ""
-        if error_msg is not None:
-            msg += f"{error_msg}: "
-
-        msg += f"({response.status_code}) {response.reason}"
         try:
-            content = response.json()
-        except json.decoder.JSONDecodeError as details:
-            raise HTTPError(msg) from details
-
-        if response.status_code == 401:
-            msg += " - Authentication failed. Check if the registry is included in the pull-secret."
-
-        if "errors" in content:
-            for error in content["errors"]:
-                msg += f", {error['message']}"
-        _LOG.debug("[%s, %s]", str(self), msg)
-        raise HTTPError(msg)
+            response.raise_for_status()
+        except HTTPError as e:
+            try:
+                content = response.json()
+            except requests.exceptions.JSONDecodeError:
+                content = {}
+            errors = ",".join(
+                error.get("message", "") for error in content.get("errors", [])
+            )
+            prefix = f"{error_msg}: " if error_msg else ""
+            msg = f"{prefix}{e!s}, errors: {errors}"
+            _LOG.debug("[%s, %s]", str(self), msg)
+            raise HTTPError(msg, response=response) from e
 
     @property
     def tags(self):
