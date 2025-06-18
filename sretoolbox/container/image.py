@@ -19,7 +19,8 @@ import re
 from http import HTTPStatus
 
 import requests
-from requests.exceptions import HTTPError, JSONDecodeError as RequestsJSONDecodeError
+from requests.exceptions import HTTPError
+from requests.exceptions import JSONDecodeError as RequestsJSONDecodeError
 
 from sretoolbox.utils import retry
 
