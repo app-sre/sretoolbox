@@ -14,13 +14,13 @@
 
 """Abstractions around container images."""
 
-import json
 import logging
 import re
 from http import HTTPStatus
 
 import requests
 from requests.exceptions import HTTPError
+from requests.exceptions import JSONDecodeError as RequestsJSONDecodeError
 
 from sretoolbox.utils import retry
 
@@ -394,10 +394,15 @@ class Image:  # noqa: PLW1641
     def manifest(self):
         """Property to return the manifest. It caches the result."""
         if self._cache_manifest is None:
-            manifest = self._get_manifest()
+            try:
+                manifest = self._get_manifest()
+            except HTTPError as e:
+                if e.response and e.response.status_code == HTTPStatus.NOT_FOUND:
+                    return None
+                raise
             try:
                 self._cache_manifest = manifest.json()
-            except json.decoder.JSONDecodeError as exc:
+            except RequestsJSONDecodeError as exc:
                 raise ImageInvalidManifestError(
                     f"Invalid manifest for {self.url_tag} - "
                     "could not decode manifest as json"
@@ -537,24 +542,20 @@ class Image:  # noqa: PLW1641
 
     def _raise_for_status(self, response, error_msg=None):
         """Includes the error messages, important for a registry"""
-        if response.status_code < 400:
-            return
-
-        msg = ""
-        if error_msg is not None:
-            msg += f"{error_msg}: "
-
-        msg += f"({response.status_code}) {response.reason}"
         try:
-            content = response.json()
-        except json.decoder.JSONDecodeError as details:
-            raise HTTPError(msg) from details
-
-        if "errors" in content:
-            for error in content["errors"]:
-                msg += f", {error['message']}"
-        _LOG.debug("[%s, %s]", str(self), msg)
-        raise HTTPError(msg)
+            response.raise_for_status()
+        except HTTPError as e:
+            try:
+                content = response.json()
+            except RequestsJSONDecodeError:
+                content = {}
+            errors = ",".join(
+                error.get("message", "") for error in content.get("errors", [])
+            )
+            prefix = f"{error_msg}: " if error_msg else ""
+            msg = f"{prefix}{e!s}, errors: {errors}"
+            _LOG.debug("[%s, %s]", str(self), msg)
+            raise HTTPError(msg, response=response) from e
 
     @property
     def tags(self):
@@ -595,10 +596,7 @@ class Image:  # noqa: PLW1641
         return url_tag
 
     def __bool__(self):
-        try:
-            return bool(self.manifest)
-        except HTTPError:
-            return False
+        return self.manifest is not None
 
     def __contains__(self, item):
         return item in self.tags
