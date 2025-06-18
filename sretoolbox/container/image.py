@@ -19,7 +19,7 @@ import re
 from http import HTTPStatus
 
 import requests
-from requests.exceptions import HTTPError
+from requests.exceptions import HTTPError, JSONDecodeError as RequestsJSONDecodeError
 
 from sretoolbox.utils import retry
 
@@ -401,7 +401,7 @@ class Image:  # noqa: PLW1641
                 raise
             try:
                 self._cache_manifest = manifest.json()
-            except requests.exceptions.JSONDecodeError as exc:
+            except RequestsJSONDecodeError as exc:
                 raise ImageInvalidManifestError(
                     f"Invalid manifest for {self.url_tag} - "
                     "could not decode manifest as json"
@@ -546,7 +546,7 @@ class Image:  # noqa: PLW1641
         except HTTPError as e:
             try:
                 content = response.json()
-            except requests.exceptions.JSONDecodeError:
+            except RequestsJSONDecodeError:
                 content = {}
             errors = ",".join(
                 error.get("message", "") for error in content.get("errors", [])
