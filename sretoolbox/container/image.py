@@ -14,7 +14,6 @@
 
 """Abstractions around container images."""
 
-import json
 import logging
 import re
 from http import HTTPStatus
