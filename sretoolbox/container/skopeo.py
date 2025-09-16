@@ -15,8 +15,8 @@
 """Wrapper around the Skopeo utility."""
 
 import logging
+import shutil
 import subprocess
-from distutils import spawn
 
 _LOG = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class Skopeo:
 
     def __init__(self, dry_run=False):
         self.dry_run = dry_run
-        self.skopeo_cmd = spawn.find_executable("skopeo")
+        self.skopeo_cmd = shutil.which("skopeo")
 
     def copy(
         self, src_image, dst_image, src_creds=None, dest_creds=None, copy_all=False
