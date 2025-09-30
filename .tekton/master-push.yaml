@@ -1,0 +1,56 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  annotations:
+    build.appstudio.openshift.io/repo: https://github.com/app-sre/sretoolbox?rev={{revision}}
+    build.appstudio.redhat.com/commit_sha: '{{revision}}'
+    build.appstudio.redhat.com/target_branch: '{{target_branch}}'
+    pipelinesascode.tekton.dev/max-keep-runs: "20"
+    pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "master"
+  labels:
+    appstudio.openshift.io/application: sretoolbox-master
+    appstudio.openshift.io/component: sretoolbox-master
+    pipelines.appstudio.openshift.io/type: build
+  name: sretoolbox-master-on-push
+  namespace: app-sre-tenant
+spec:
+  params:
+  - name: git-url
+    value: '{{source_url}}'
+  - name: revision
+    value: '{{revision}}'
+  - name: output-image
+    value: quay.io/redhat-user-workloads/app-sre-tenant/sretoolbox-master/sretoolbox-master:{{revision}}
+  - name: dockerfile
+    value: Dockerfile
+  - name: image-expires-after
+    value: 5d
+  - name: path-context
+    value: .
+  - name: target-stage
+    value: pypi
+  - name: additional_secret
+    value: app-sre-pypi-credentials
+  pipelineRef:
+    resolver: git
+    params:
+    - name: url
+      value: https://github.com/app-sre/shared-pipelines
+    - name: revision
+      value: master
+    - name: pathInRepo
+      value: pipelines/multi-arch-build-pipeline.yaml
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-sretoolbox-master
+  workspaces:
+  - name: workspace
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+  - name: git-auth
+    secret:
+      secretName: '{{ git_auth_secret }}'

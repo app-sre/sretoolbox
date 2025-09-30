@@ -1,7 +1,3 @@
-.EXPORT_ALL_VARIABLES:
-UV_PUBLISH_USERNAME = $(TWINE_USERNAME)
-UV_PUBLISH_PASSWORD = $(TWINE_PASSWORD)
-
 all:
 	@echo
 	@echo "Targets:"
@@ -23,5 +19,5 @@ clean:
 	find . \( -name "*.pyc" -o -name "*.pyo" -o -name "__pycache__" \) -exec rm -fr {} +
 
 pypi:
-	uv build
-	uv publish
+	uv build --sdist --wheel --out-dir dist
+	uv publish || true
