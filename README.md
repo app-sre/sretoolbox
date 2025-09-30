@@ -53,10 +53,7 @@ make check
 ## Release
 
 Bump the version number in `pyproject.toml`. Submit a pull
-request to master. When it is merged, create a tag and push it to
-`app-sre/sretoolbox`.
-
-This will trigger a CI job that will publish the package on pypi.
+request to master. When it is merged, a Konflux job will publish the package on pypi.
 
 ## License
 

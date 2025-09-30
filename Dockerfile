@@ -1,6 +1,7 @@
 # vi:set ft=dockerfile:
-FROM registry.redhat.io/ubi9/python-39@sha256:49f0e4711ec5f7358cdf3c89ef835a7dcccb6da3370e916fcdfddd392856c39a AS test
-COPY --from=ghcr.io/astral-sh/uv:0.5.5@sha256:dc60491f42c9c7228fe2463f551af49a619ebcc9cbd10a470ced7ada63aa25d4 /uv /bin/uv
+FROM registry.access.redhat.com/ubi9/python-39@sha256:49f0e4711ec5f7358cdf3c89ef835a7dcccb6da3370e916fcdfddd392856c39a AS test
+COPY --from=ghcr.io/astral-sh/uv:0.8.22@sha256:9874eb7afe5ca16c363fe80b294fe700e460df29a55532bbfea234a0f12eddb1 /uv /bin/uv
+COPY LICENSE /licenses/
 
 ENV \
     # use venv from ubi image
@@ -25,8 +26,11 @@ RUN uv sync --frozen --no-editable
 # Run tests
 RUN make check
 
+#
+# PyPI publish image
+#
 FROM test AS pypi
-ARG TWINE_USERNAME
-ARG TWINE_PASSWORD
-
-RUN make pypi
+# Secrets are owned by root and are not readable by others :(
+USER root
+RUN --mount=type=secret,id=app-sre-pypi-credentials/token UV_PUBLISH_TOKEN=$(cat /run/secrets/app-sre-pypi-credentials/token) make pypi
+USER 1001
