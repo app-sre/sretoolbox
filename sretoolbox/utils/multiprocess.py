@@ -14,9 +14,9 @@
 
 """Multiprocessing abstractions."""
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from concurrent.futures import ProcessPoolExecutor
-from typing import Any, Callable
+from typing import Any
 
 from sretoolbox.utils.concurrent import pmap
 

@@ -1,30 +1,21 @@
 # vi:set ft=dockerfile:
-FROM registry.access.redhat.com/ubi9/python-39@sha256:842eeb962621099270f52246499b16c7da5204b76d4a33c94d59339061404827 AS test
+FROM registry.access.redhat.com/ubi9-minimal@sha256:7c5495d5fad59aaee12abc3cbbd2b283818ee1e814b00dbc7f25bf2d14fa4f0c AS test
 COPY --from=ghcr.io/astral-sh/uv:0.8.22@sha256:9874eb7afe5ca16c363fe80b294fe700e460df29a55532bbfea234a0f12eddb1 /uv /bin/uv
 COPY LICENSE /licenses/
 
-ENV \
-    # use venv from ubi image
-    UV_PROJECT_ENVIRONMENT=$APP_ROOT \
-    # compile bytecode for faster startup
-    UV_COMPILE_BYTECODE="true" \
-    # disable uv cache. it doesn't make sense in a container
-    UV_NO_CACHE=true
+RUN microdnf install -y make && microdnf clean all
+WORKDIR /app
 
-# Install dependencies
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project --python /usr/bin/python3
-
-# other project related files
-COPY LICENSE README.md Makefile ./
+# Install build dependencies
+COPY pyproject.toml uv.lock LICENSE README.md Makefile ./
 
 # the source code
 COPY sretoolbox ./sretoolbox
 COPY --chown=1001:0 tests ./tests
-RUN uv sync --frozen --no-editable
 
 # Run tests
 RUN make check
+USER 1001
 
 #
 # PyPI publish image

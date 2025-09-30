@@ -1,4 +1,3 @@
-# ruff: noqa:A005
 # Copyright 2021 Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,10 +14,10 @@
 
 """Concurrent abstractions."""
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from concurrent.futures import Executor
 from functools import partial
-from typing import Any, Callable
+from typing import Any
 
 from sretoolbox.utils.exception import SystemExitWrapperError
 

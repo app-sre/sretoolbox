@@ -1,8 +1,8 @@
 [project]
 name = "sretoolbox"
-version = "2.7.1"
-requires-python = " >=3.9"
-description = "Code Generator for GraphQL Query and Fragment Data Classes"
+version = "3.0.0"
+requires-python = ">=3.10"
+description = "Set of libraries commonly used by multiple SRE projects"
 readme = "README.md"
 license = { text = "Apache 2.0" }
 
@@ -10,9 +10,9 @@ authors = [
     { name = "Red Hat Application SRE Team", email = "sd-app-sre@redhat.com" },
 ]
 dependencies = [
-    "python-json-logger ~=2.0.7",
-    "requests ~=2.32.3",
-    "semver ~=3.0.2",
+    "python-json-logger >=3.3.0",
+    "requests >=2.32.0",
+    "semver >=3.0.4",
 ]
 
 
@@ -23,11 +23,10 @@ documentation = "https://github.com/app-sre/sretoolbox"
 
 [dependency-groups]
 dev = [
-    "pytest ~=8.3.3",
-    "pytest-cov ~=6.0.0",
-    "pytest-xdist ~=3.6.1",
-    "requests-mock ~=1.12.1",
-    "ruff ~=0.8",
+    "pytest==8.4.2",
+    "pytest-cov==7.0.0",
+    "requests-mock==1.12.1",
+    "ruff==0.13.2",
 ]
 
 [build-system]
@@ -42,7 +41,7 @@ only-include = ["sretoolbox"]
 
 # Ruff configuration
 [tool.ruff]
-target-version = 'py39'
+target-version = 'py311'
 line-length = 88
 src = ["sretoolbox", "tests"]
 extend-exclude = [
