@@ -1,3 +1,5 @@
+PYTEST_CMD = pytest -v --cov=sretoolbox --cov-report=term-missing tests/
+
 all:
 	@echo
 	@echo "Targets:"
@@ -7,12 +9,16 @@ all:
 	@echo
 
 develop:
-	uv sync --python 3.9
+	uv sync
 
 check:
 	uv run ruff format --check
 	uv run ruff check --no-fix
-	uv run pytest -v --cov=sretoolbox --cov-report=term-missing tests/
+	uv run --python=3.10 $(PYTEST_CMD)
+	uv run --python=3.11 $(PYTEST_CMD)
+	uv run --python=3.12 $(PYTEST_CMD)
+	uv run --python=3.13 $(PYTEST_CMD)
+	uv run --python=3.14 $(PYTEST_CMD)
 
 clean:
 	find . -type d \( -name "build" -o -name "dist" -o -name "*.egg-info" \) -exec rm -fr {} +

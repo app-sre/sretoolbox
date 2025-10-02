@@ -14,9 +14,9 @@
 
 """Threading abstractions."""
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Callable
+from typing import Any
 
 from sretoolbox.utils.concurrent import pmap
 

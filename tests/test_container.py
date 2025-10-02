@@ -1,4 +1,4 @@
-# ruff: noqa: S105,S106,SLF001,PLR2004,PTH123,FURB101,FBT003
+# ruff: noqa: S105, S106, SLF001, FURB101, FBT003
 # Copyright 2021 Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -329,268 +329,261 @@ class TestRequestGet:
         parseauth.assert_not_called()
 
 
-class ImageMocks:
-    @classmethod
-    @pytest.fixture
-    def v1_image_mock(cls, requests_mock):
-        with open(
-            "tests/fixtures/manifests/v1-image.json",
-            encoding=locale.getpreferredencoding(False),
-        ) as f:
-            manifest = f.read()
+@pytest.fixture
+def v1_image_mock(requests_mock):
+    with open(
+        "tests/fixtures/manifests/v1-image.json",
+        encoding=locale.getpreferredencoding(False),
+    ) as f:
+        manifest = f.read()
 
-        requests_mock.get(
-            "https://registry.io/v2/test/v1-image/manifests/latest",
-            headers={
-                "Content-Type": "application/vnd.docker.distribution.manifest.v1+json"
-            },
-            content=manifest.encode(),
-        )
-        return {
-            "mock": requests_mock,
-            "url": "docker://registry.io/test/v1-image:latest",
-        }
+    requests_mock.get(
+        "https://registry.io/v2/test/v1-image/manifests/latest",
+        headers={
+            "Content-Type": "application/vnd.docker.distribution.manifest.v1+json"
+        },
+        content=manifest.encode(),
+    )
+    return {
+        "mock": requests_mock,
+        "url": "docker://registry.io/test/v1-image:latest",
+    }
 
-    @classmethod
-    @pytest.fixture
-    def v2_image_mock(cls, requests_mock):
-        with open(
-            "tests/fixtures/manifests/v2-image.json",
-            encoding=locale.getpreferredencoding(False),
-        ) as f:
-            manifest = f.read()
 
-        requests_mock.get(
-            "https://registry.io/v2/test/v2-image/manifests/latest",
-            headers={
-                "Content-Type": "application/vnd.docker.distribution.manifest.v2+json",
-                "Docker-Content-Digest": "sha256:8a22fe7cf283894b7b2a8fad9f950"
-                "2ad3260db4ee31e609f7ce20d06d88d93c7",
-            },
-            content=manifest.encode(),
-        )
+@pytest.fixture
+def v2_image_mock(requests_mock):
+    with open(
+        "tests/fixtures/manifests/v2-image.json",
+        encoding=locale.getpreferredencoding(False),
+    ) as f:
+        manifest = f.read()
 
-        return {
-            "mock": requests_mock,
-            "url": "docker://registry.io/test/v2-image:latest",
-        }
-
-    @classmethod
-    @pytest.fixture
-    def v2_fat_image_mock(cls, requests_mock):
-        with open(
-            "tests/fixtures/manifests/v2-fat-image.json",
-            encoding=locale.getpreferredencoding(False),
-        ) as f:
-            manifest = f.read()
-
-        requests_mock.get(
-            "https://registry.io/v2/test/v2-fat-image/manifests/latest",
-            headers={
-                "Content-Type": "application/vnd.docker.distribution.manifest.list.v2+json"
-            },
-            content=manifest.encode(),
-        )
-
-        return {
-            "mock": requests_mock,
-            "url": "docker://registry.io/test/v2-fat-image:latest",
-        }
-
-    @classmethod
-    @pytest.fixture
-    def oci_image_mock(cls, requests_mock):
-        with open(
-            "tests/fixtures/manifests/oci-image.json",
-            encoding=locale.getpreferredencoding(False),
-        ) as f:
-            manifest = f.read()
-
-        requests_mock.get(
-            "https://registry.io/v2/test/oci-image/manifests/latest",
-            headers={
-                "Content-Type": "application/vnd.oci.image.manifest.v1+json",
-                "Docker-Content-Digest": "sha256:1712421fab5a88b1d2b722d0dc112"
-                "3148adc709a179e310e7bc0e3e9a775e834",
-            },
-            content=manifest.encode(),
-        )
-
-        return {
-            "mock": requests_mock,
-            "url": "docker://registry.io/test/oci-image:latest",
-        }
-
-    @classmethod
-    @pytest.fixture
-    def oci_fat_image_mock(cls, requests_mock):
-        with open(
-            "tests/fixtures/manifests/oci-fat-image.json",
-            encoding=locale.getpreferredencoding(False),
-        ) as f:
-            manifest = f.read()
-
-        requests_mock.get(
-            "https://registry.io/v2/test/oci-fat-image/manifests/latest",
-            headers={"Content-Type": "application/vnd.oci.image.index.v1+json"},
-            content=manifest.encode(),
-        )
-
-        return {
-            "mock": requests_mock,
-            "url": "docker://registry.io/test/oci-fat-image:latest",
-        }
-
-    @classmethod
-    @pytest.fixture
-    def no_headers_image_mock(cls, requests_mock):
-        with open(
-            "tests/fixtures/manifests/v2-image.json",
-            encoding=locale.getpreferredencoding(False),
-        ) as f:
-            manifest = f.read()
-
-        requests_mock.get(
-            "https://registry.io/v2/test/image/manifests/latest",
-            content=manifest.encode(),
-        )
-
-        return {
-            "mock": requests_mock,
-            "url": "docker://registry.io/test/image:latest",
-        }
-
-    @classmethod
-    @pytest.fixture
-    def image_with_digest_mock(cls, requests_mock):
-        with open(
-            "tests/fixtures/manifests/v2-image.json",
-            encoding=locale.getpreferredencoding(False),
-        ) as f:
-            manifest = f.read()
-
-        requests_mock.get(
-            f"https://registry.io/v2/test/image/manifests/{A_SHA}",
-            headers={
-                "Content-Type": "application/vnd.docker.distribution.manifest.v2+json",
-                "Docker-Content-Digest": f"sha256:{A_SHA}",
-            },
-            content=manifest.encode(),
-        )
-
-        return {
-            "mock": requests_mock,
-            "url": f"docker://registry.io/test/image@{A_SHA}",
-        }
-
-    @classmethod
-    @pytest.fixture
-    def dockerhub_image_mock(cls, requests_mock):
-        with open(
-            "tests/fixtures/manifests/v2-image.json",
-            encoding=locale.getpreferredencoding(False),
-        ) as f:
-            manifest = f.read()
-
-        manifest_url = "https://registry-1.docker.io/v2/test/image/manifests/latest"
-        headers = {
+    requests_mock.get(
+        "https://registry.io/v2/test/v2-image/manifests/latest",
+        headers={
             "Content-Type": "application/vnd.docker.distribution.manifest.v2+json",
             "Docker-Content-Digest": "sha256:8a22fe7cf283894b7b2a8fad9f950"
             "2ad3260db4ee31e609f7ce20d06d88d93c7",
-        }
+        },
+        content=manifest.encode(),
+    )
 
-        requests_mock.get(
-            manifest_url,
-            headers=headers,
-            content=manifest.encode(),
-        )
+    return {
+        "mock": requests_mock,
+        "url": "docker://registry.io/test/v2-image:latest",
+    }
 
-        requests_mock.head(manifest_url, headers=headers)
 
-        return {
-            "mock": requests_mock,
-            "url": "docker://docker.io/test/image:latest",
-            "manifest_url": manifest_url,
-        }
+@pytest.fixture
+def v2_fat_image_mock(requests_mock):
+    with open(
+        "tests/fixtures/manifests/v2-fat-image.json",
+        encoding=locale.getpreferredencoding(False),
+    ) as f:
+        manifest = f.read()
 
-    @classmethod
-    @pytest.fixture
-    def redhat_registry_image_mock(cls, requests_mock):
-        with open(
-            "tests/fixtures/manifests/ubi8-python39-manifest.json",
-            encoding=locale.getpreferredencoding(False),
-        ) as f:
-            manifest = f.read()
+    requests_mock.get(
+        "https://registry.io/v2/test/v2-fat-image/manifests/latest",
+        headers={
+            "Content-Type": "application/vnd.docker.distribution.manifest.list.v2+json"
+        },
+        content=manifest.encode(),
+    )
 
-        manifest_url = (
-            "https://registry.access.redhat.com/v2/ubi8/python-39/manifests/latest"
-        )
+    return {
+        "mock": requests_mock,
+        "url": "docker://registry.io/test/v2-fat-image:latest",
+    }
 
-        headers = {
-            "Content-Type": "application/vnd.docker.distribution.manifest.list.v2+json",
-            "ETag": '"672c5deca9a237fbc99de2992de0f178:1666889119.378372"',
-            "Last-Modified": "Thu, 27 Oct 2022 15:33:48 GMT",
-        }
 
-        requests_mock.get(
-            manifest_url,
-            [
-                {
-                    "headers": headers,
-                    "content": manifest.encode(),
-                    "status_code": HTTPStatus.OK,
-                },
-                {
-                    "headers": headers,
-                    "content": manifest.encode(),
-                    "status_code": HTTPStatus.NOT_MODIFIED,
-                },
-            ],
-        )
+@pytest.fixture
+def oci_image_mock(requests_mock):
+    with open(
+        "tests/fixtures/manifests/oci-image.json",
+        encoding=locale.getpreferredencoding(False),
+    ) as f:
+        manifest = f.read()
 
-        return {
-            "mock": requests_mock,
-            "url": "docker://registry.access.redhat.com/ubi8/python-39",
-            "manifest_url": manifest_url,
-        }
+    requests_mock.get(
+        "https://registry.io/v2/test/oci-image/manifests/latest",
+        headers={
+            "Content-Type": "application/vnd.oci.image.manifest.v1+json",
+            "Docker-Content-Digest": "sha256:1712421fab5a88b1d2b722d0dc112"
+            "3148adc709a179e310e7bc0e3e9a775e834",
+        },
+        content=manifest.encode(),
+    )
 
-    @classmethod
-    @pytest.fixture
-    def invalid_image_manifest_mock(cls, requests_mock):
-        with open(
-            "tests/fixtures/manifests/invalid-image-manifest.json",
-            encoding=locale.getpreferredencoding(False),
-        ) as f:
-            manifest = f.read()
+    return {
+        "mock": requests_mock,
+        "url": "docker://registry.io/test/oci-image:latest",
+    }
 
-        manifest_url = "https://registry-1.docker.io/v2/test/image/manifests/latest"
-        headers = {
+
+@pytest.fixture
+def oci_fat_image_mock(requests_mock):
+    with open(
+        "tests/fixtures/manifests/oci-fat-image.json",
+        encoding=locale.getpreferredencoding(False),
+    ) as f:
+        manifest = f.read()
+
+    requests_mock.get(
+        "https://registry.io/v2/test/oci-fat-image/manifests/latest",
+        headers={"Content-Type": "application/vnd.oci.image.index.v1+json"},
+        content=manifest.encode(),
+    )
+
+    return {
+        "mock": requests_mock,
+        "url": "docker://registry.io/test/oci-fat-image:latest",
+    }
+
+
+@pytest.fixture
+def no_headers_image_mock(requests_mock):
+    with open(
+        "tests/fixtures/manifests/v2-image.json",
+        encoding=locale.getpreferredencoding(False),
+    ) as f:
+        manifest = f.read()
+
+    requests_mock.get(
+        "https://registry.io/v2/test/image/manifests/latest",
+        content=manifest.encode(),
+    )
+
+    return {
+        "mock": requests_mock,
+        "url": "docker://registry.io/test/image:latest",
+    }
+
+
+@pytest.fixture
+def image_with_digest_mock(requests_mock):
+    with open(
+        "tests/fixtures/manifests/v2-image.json",
+        encoding=locale.getpreferredencoding(False),
+    ) as f:
+        manifest = f.read()
+
+    requests_mock.get(
+        f"https://registry.io/v2/test/image/manifests/{A_SHA}",
+        headers={
             "Content-Type": "application/vnd.docker.distribution.manifest.v2+json",
-            "Docker-Content-Digest": "sha256:8a22fe7cf283894b7b2a8fad9f950"
-            "2ad3260db4ee31e609f7ce20d06d88d93c7",
-        }
+            "Docker-Content-Digest": f"sha256:{A_SHA}",
+        },
+        content=manifest.encode(),
+    )
 
-        requests_mock.get(
-            manifest_url,
-            headers=headers,
-            content=manifest.encode(),
-        )
+    return {
+        "mock": requests_mock,
+        "url": f"docker://registry.io/test/image@{A_SHA}",
+    }
 
-        requests_mock.head(manifest_url, headers=headers)
 
-        return {
-            "mock": requests_mock,
-            "url": "docker://docker.io/test/image:latest",
-            "manifest_url": manifest_url,
-        }
+@pytest.fixture
+def dockerhub_image_mock(requests_mock):
+    with open(
+        "tests/fixtures/manifests/v2-image.json",
+        encoding=locale.getpreferredencoding(False),
+    ) as f:
+        manifest = f.read()
+
+    manifest_url = "https://registry-1.docker.io/v2/test/image/manifests/latest"
+    headers = {
+        "Content-Type": "application/vnd.docker.distribution.manifest.v2+json",
+        "Docker-Content-Digest": "sha256:8a22fe7cf283894b7b2a8fad9f950"
+        "2ad3260db4ee31e609f7ce20d06d88d93c7",
+    }
+
+    requests_mock.get(
+        manifest_url,
+        headers=headers,
+        content=manifest.encode(),
+    )
+
+    requests_mock.head(manifest_url, headers=headers)
+
+    return {
+        "mock": requests_mock,
+        "url": "docker://docker.io/test/image:latest",
+        "manifest_url": manifest_url,
+    }
+
+
+@pytest.fixture
+def redhat_registry_image_mock(requests_mock):
+    with open(
+        "tests/fixtures/manifests/ubi8-python39-manifest.json",
+        encoding=locale.getpreferredencoding(False),
+    ) as f:
+        manifest = f.read()
+
+    manifest_url = (
+        "https://registry.access.redhat.com/v2/ubi8/python-39/manifests/latest"
+    )
+
+    headers = {
+        "Content-Type": "application/vnd.docker.distribution.manifest.list.v2+json",
+        "ETag": '"672c5deca9a237fbc99de2992de0f178:1666889119.378372"',
+        "Last-Modified": "Thu, 27 Oct 2022 15:33:48 GMT",
+    }
+
+    requests_mock.get(
+        manifest_url,
+        [
+            {
+                "headers": headers,
+                "content": manifest.encode(),
+                "status_code": HTTPStatus.OK,
+            },
+            {
+                "headers": headers,
+                "content": manifest.encode(),
+                "status_code": HTTPStatus.NOT_MODIFIED,
+            },
+        ],
+    )
+
+    return {
+        "mock": requests_mock,
+        "url": "docker://registry.access.redhat.com/ubi8/python-39",
+        "manifest_url": manifest_url,
+    }
+
+
+@pytest.fixture
+def invalid_image_manifest_mock(requests_mock):
+    with open(
+        "tests/fixtures/manifests/invalid-image-manifest.json",
+        encoding=locale.getpreferredencoding(False),
+    ) as f:
+        manifest = f.read()
+
+    manifest_url = "https://registry-1.docker.io/v2/test/image/manifests/latest"
+    headers = {
+        "Content-Type": "application/vnd.docker.distribution.manifest.v2+json",
+        "Docker-Content-Digest": "sha256:8a22fe7cf283894b7b2a8fad9f950"
+        "2ad3260db4ee31e609f7ce20d06d88d93c7",
+    }
+
+    requests_mock.get(
+        manifest_url,
+        headers=headers,
+        content=manifest.encode(),
+    )
+
+    requests_mock.head(manifest_url, headers=headers)
+
+    return {
+        "mock": requests_mock,
+        "url": "docker://docker.io/test/image:latest",
+        "manifest_url": manifest_url,
+    }
 
 
 class TestImageManifest:
-    dockerhub_image_mock = ImageMocks.dockerhub_image_mock
-    redhat_registry_image_mock = ImageMocks.redhat_registry_image_mock
-
-    invalid_image_manifest_mock = ImageMocks.invalid_image_manifest_mock
-
     def test_dockerhub_manifest_unchanged(self, dockerhub_image_mock):
         cache = {}
         token = "Bearer thisIsOneToken"
@@ -678,12 +671,6 @@ class TestImageManifest:
 
 
 class TestImageComparison:
-    v1_image_mock = ImageMocks.v1_image_mock
-    v2_image_mock = ImageMocks.v2_image_mock
-    v2_fat_image_mock = ImageMocks.v2_fat_image_mock
-    oci_image_mock = ImageMocks.oci_image_mock
-    oci_fat_image_mock = ImageMocks.oci_fat_image_mock
-
     def test_v1_image_comparisons(
         self,
         v1_image_mock,
@@ -786,10 +773,6 @@ class TestImageComparison:
 
 
 class TestManifestAccessors:
-    image_mock = ImageMocks.v2_image_mock
-    no_headers_image_mock = ImageMocks.no_headers_image_mock
-    image_with_digest_mock = ImageMocks.image_with_digest_mock
-
     def test_no_content_type(self, no_headers_image_mock):
         image = Image(no_headers_image_mock["url"])
         with pytest.raises(HTTPError):
@@ -800,38 +783,38 @@ class TestManifestAccessors:
         with pytest.raises(HTTPError):
             _ = image.digest
 
-    def test_manifest_cached(self, image_mock):
-        image = Image(image_mock["url"])
+    def test_manifest_cached(self, v2_image_mock):
+        image = Image(v2_image_mock["url"])
         for _i in range(4):
             _ = image.manifest
 
-        assert image_mock["mock"].call_count == 1
+        assert v2_image_mock["mock"].call_count == 1
 
-    def test_content_type_cached(self, image_mock):
-        image = Image(image_mock["url"])
+    def test_content_type_cached(self, v2_image_mock):
+        image = Image(v2_image_mock["url"])
         for _i in range(4):
             _ = image.content_type
 
-        assert image_mock["mock"].call_count == 1
+        assert v2_image_mock["mock"].call_count == 1
 
-    def test_digest_cached(self, image_mock):
-        image = Image(image_mock["url"])
+    def test_digest_cached(self, v2_image_mock):
+        image = Image(v2_image_mock["url"])
         for _i in range(4):
             _ = image.digest
 
-        assert image_mock["mock"].call_count == 1
+        assert v2_image_mock["mock"].call_count == 1
 
-    def test_manifest_caches_other_headers(self, image_mock):
-        image = Image(image_mock["url"])
+    def test_manifest_caches_other_headers(self, v2_image_mock):
+        image = Image(v2_image_mock["url"])
 
         _ = image.manifest
-        assert image_mock["mock"].call_count == 1
+        assert v2_image_mock["mock"].call_count == 1
 
         _ = image.content_type
-        assert image_mock["mock"].call_count == 1
+        assert v2_image_mock["mock"].call_count == 1
 
         _ = image.digest
-        assert image_mock["mock"].call_count == 1
+        assert v2_image_mock["mock"].call_count == 1
 
     def test_digest_cached_from_arguments(self, image_with_digest_mock):
         image = Image(image_with_digest_mock["url"])
@@ -840,13 +823,6 @@ class TestManifestAccessors:
 
 
 class TestImageIsPartOf:
-    v1_image_mock = ImageMocks.v1_image_mock
-    v2_image_mock = ImageMocks.v2_image_mock
-    v2_fat_image_mock = ImageMocks.v2_fat_image_mock
-    oci_image_mock = ImageMocks.oci_image_mock
-    oci_fat_image_mock = ImageMocks.oci_fat_image_mock
-    v2_other_image_mock = ImageMocks.image_with_digest_mock
-
     def test_v2_image_contains(self, v2_image_mock, v2_fat_image_mock):
         v2_image = Image(v2_image_mock["url"])
         v2_fat_image = Image(v2_fat_image_mock["url"])
@@ -857,8 +833,8 @@ class TestImageIsPartOf:
         oci_fat_image = Image(oci_fat_image_mock["url"])
         assert oci_image.is_part_of(oci_fat_image)
 
-    def test_image_does_not_contain(self, v2_other_image_mock, v2_fat_image_mock):
-        image = Image(v2_other_image_mock["url"])
+    def test_image_does_not_contain(self, image_with_digest_mock, v2_fat_image_mock):
+        image = Image(image_with_digest_mock["url"])
         fat_image = Image(v2_fat_image_mock["url"])
         assert not image.is_part_of(fat_image)
 
