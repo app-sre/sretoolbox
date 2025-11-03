@@ -1,6 +1,6 @@
 [project]
 name = "sretoolbox"
-version = "3.0.0"
+version = "3.1.0"
 requires-python = ">=3.10"
 description = "Set of libraries commonly used by multiple SRE projects"
 readme = "README.md"
