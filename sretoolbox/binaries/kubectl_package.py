@@ -37,7 +37,7 @@ class KubectlPackage(Binary):
         f"kubectl-package_{system}_{sanitized_machine}"
     )
 
-    def get_version_command(self):
+    def get_version_command(self) -> list[str]:
         """
         Gets the command and its option(s) to check the version.
 
@@ -46,7 +46,7 @@ class KubectlPackage(Binary):
         """
         return [self.command, "--version"]
 
-    def parse_version(self, version):
+    def parse_version(self, version: str) -> VersionInfo:
         """Parses version string as returned by the command execution to a VersionInfo.
 
         :param version: the return from the version command
@@ -58,7 +58,7 @@ class KubectlPackage(Binary):
         match = re.search(r"\d+\.\d+\.\d+", version)
         return VersionInfo.parse(version=match.group(0) if match else "")
 
-    def process_download(self, path):  # noqa: ARG002
+    def process_download(self, path: str) -> str:  # noqa: ARG002
         """Processes a downloaded file and returns the executable binary path.
 
         :param path: The downloaded file path
@@ -66,4 +66,4 @@ class KubectlPackage(Binary):
         """
         bin_path = self.download_path / self.binary
         bin_path.chmod(0o777)
-        return bin_path
+        return str(bin_path)

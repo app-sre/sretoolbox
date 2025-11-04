@@ -15,7 +15,7 @@
 """Concurrent abstractions."""
 
 from collections.abc import Callable, Iterable
-from concurrent.futures import Executor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import partial
 from typing import Any
 
@@ -25,9 +25,9 @@ from sretoolbox.utils.exception import SystemExitWrapperError
 def pmap(
     func: Callable[..., Any],
     iterable: Iterable[Any],
-    executor: type[Executor],
+    executor: type[ThreadPoolExecutor | ProcessPoolExecutor],
     pool_size: int,
-    return_exceptions: bool = False,  # noqa: FBT001
+    return_exceptions: bool = False,
     **kwargs: Any,
 ) -> list[Any]:
     """Like map but with a pool of workers.

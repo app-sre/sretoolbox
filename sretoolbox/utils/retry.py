@@ -31,14 +31,29 @@
 
 """Functions to add resilience to function calls."""
 
+from __future__ import annotations
+
 import itertools
 import time
 from functools import wraps
+from typing import TYPE_CHECKING, ParamSpec, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+# Type variables for proper decorator typing
+P = ParamSpec("P")
+T = TypeVar("T")
 
 
 # Original Code:
 # https://github.com/saltycrane/retry-decorator/blob/a26fe27/retry_decorator.py
-def retry(exceptions=Exception, max_attempts=3, no_retry_exceptions=(), hook=None):
+def retry(
+    exceptions: type[Exception] | tuple[type[Exception], ...] = Exception,
+    max_attempts: int = 3,
+    no_retry_exceptions: tuple[type[Exception], ...] = (),
+    hook: Callable[[Exception], None] | None = None,
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Adds resilience to function calls.
 
     This decorator will retry a function for several attempts if it raises an
@@ -61,9 +76,9 @@ def retry(exceptions=Exception, max_attempts=3, no_retry_exceptions=(), hook=Non
     :rtype: function
     """
 
-    def deco_retry(function):
+    def deco_retry(function: Callable[P, T]) -> Callable[P, T]:
         @wraps(function)
-        def f_retry(*args, **kwargs):
+        def f_retry(*args: P.args, **kwargs: P.kwargs) -> T:
             for attempt in itertools.count(1):
                 try:
                     return function(*args, **kwargs)
@@ -75,7 +90,8 @@ def retry(exceptions=Exception, max_attempts=3, no_retry_exceptions=(), hook=Non
                     if callable(hook):
                         hook(exception)
                     time.sleep(attempt)
-            return None
+            # make mypy happy
+            raise RuntimeError("Unreachable code in retry decorator")
 
         return f_retry
 

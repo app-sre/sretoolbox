@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
 
 import pytest
 
@@ -19,7 +20,7 @@ from sretoolbox.utils.datatransformation import deep_merge
 
 
 class TestReplaceValues:
-    def test_parser(self):
+    def test_parser(self) -> None:
         obj = [
             True,
             False,

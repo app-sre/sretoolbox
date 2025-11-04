@@ -17,7 +17,7 @@
 from typing import Any, TypeVar
 
 
-def replace_values(obj, replace_map):
+def replace_values(obj: Any, replace_map: dict[Any, Any]) -> Any:
     """Deep replace of object values according to provided map.
 
     :param obj: the object to have the values replaced

@@ -14,9 +14,12 @@
 
 """JSON and Text loggers abstractions."""
 
+from __future__ import annotations
+
 import logging
 import sys
 from enum import Enum
+from typing import ClassVar, TextIO
 
 from pythonjsonlogger import jsonlogger
 
@@ -28,39 +31,43 @@ class LoggerType(Enum):
     JSON = 2
 
 
-def get_text_logger(name, stream=sys.stdout, level=logging.INFO):
+def get_text_logger(
+    name: str, stream: TextIO = sys.stdout, level: int = logging.INFO
+) -> logging.Logger:
     """
     Sets up or returns a singleton text logger.
 
     :param name: logger name
     :type name: str
     :param stream: stream where to log
-    :type stream: io.TextIOWrapper
+    :type stream: TextIO
     :param level: log level
     :type level: int
     :return: text logger
     :rtype: logging.Logger
     """
-    return LoggersSingleton(name=name, kind=LoggerType.TEXT, stream=stream, level=level)
+    return LoggersSingleton(name=name, kind=LoggerType.TEXT, stream=stream, level=level)  # type: ignore[return-value]
 
 
-def get_json_logger(name, stream=sys.stdout, level=logging.INFO):
+def get_json_logger(
+    name: str, stream: TextIO = sys.stdout, level: int = logging.INFO
+) -> logging.Logger:
     """
     Sets up or returns a singleton JSON logger.
 
     :param name: logger name
     :type name: str
     :param stream: stream where to log
-    :type stream: io.TextIOWrapper
+    :type stream: TextIO
     :param level: log level
     :type level: int
     :return: text logger
     :rtype: logging.Logger
     """
-    return LoggersSingleton(name=name, kind=LoggerType.JSON, stream=stream, level=level)
+    return LoggersSingleton(name=name, kind=LoggerType.JSON, stream=stream, level=level)  # type: ignore[return-value]
 
 
-def _setup_text_logger(name, stream, level):
+def _setup_text_logger(name: str, stream: TextIO, level: int) -> logging.Logger:
     """Setup a text logger."""
     res = logging.getLogger(name)
     handler = logging.StreamHandler(stream)
@@ -70,7 +77,7 @@ def _setup_text_logger(name, stream, level):
     return res
 
 
-def _setup_json_logger(name, stream, level):
+def _setup_json_logger(name: str, stream: TextIO, level: int) -> logging.Logger:
     """Setup a JSON logger."""
     res = logging.getLogger(name)
     handler = logging.StreamHandler(stream)
@@ -84,10 +91,14 @@ class LoggersSingleton:
     """Singleton wrapper around loggers."""
 
     # Loggers are indexed first by kind, after by name
-    _instances = {k: {} for k in LoggerType.__members__}
+    _instances: ClassVar[dict[str, dict[str, logging.Logger]]] = {
+        k: {} for k in LoggerType.__members__
+    }
 
-    def __new__(cls, kind, name, stream, level):
-        if cls._instances.get(kind.name).get(name) is None:
+    def __new__(  # type: ignore[misc]
+        cls, kind: LoggerType, name: str, stream: TextIO, level: int
+    ) -> logging.Logger:
+        if cls._instances.get(kind.name, {}).get(name) is None:
             if kind == LoggerType.TEXT:
                 cls._instances[kind.name][name] = _setup_text_logger(
                     name, stream, level

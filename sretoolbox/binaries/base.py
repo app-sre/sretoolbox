@@ -14,6 +14,8 @@
 
 """Abstractions around system binaries."""
 
+from __future__ import annotations
+
 import logging
 import os
 from abc import ABC, abstractmethod
@@ -49,7 +51,7 @@ class Binary(ABC):
     binary_template = ""
     download_url_template = ""
 
-    def __init__(self, version, download_path):
+    def __init__(self, version: str, download_path: Path | str) -> None:
         # Making sure that the version contains
         # valid minor and patch elements
         counter = Counter(version)
@@ -119,22 +121,23 @@ class Binary(ABC):
                 )
 
     @property
-    def command(self):
+    def command(self) -> str:
         """The binary command full path."""
+        assert self._command is not None
         return self._command
 
     @property
-    def version(self):
+    def version(self) -> VersionInfo:
         """The binary VersionInfo object instance."""
         return self._command_version
 
     @property
-    def binary(self):
+    def binary(self) -> str:
         """The binary name."""
         return self.binary_template.format(version=self.expected_version)
 
     @property
-    def download_url(self):
+    def download_url(self) -> str:
         """The download URL."""
         return self.download_url_template.format(
             major=self.expected_version.major,
@@ -144,13 +147,13 @@ class Binary(ABC):
             build=self.expected_version.build,
         )
 
-    def run(self, *args):
+    def run(self, *args: str) -> str:
         """Runs binary with arbitrary options."""
         cmd = [self.command, *args]
         return run(cmd)
 
     @staticmethod
-    def _compare(expected, actual):
+    def _compare(expected: VersionInfo, actual: VersionInfo) -> bool:
         """Compares the not None fields from a VersionInfo object.
 
         :param expected: the expected version.
@@ -173,7 +176,7 @@ class Binary(ABC):
         LOG.debug("Version match: %s == %s", expected, actual)
         return True
 
-    def _get_command_path(self, cmd, check_exec=True):
+    def _get_command_path(self, cmd: str, check_exec: bool = True) -> str | None:
         """Find a given command in the system.
 
         :param cmd: The command name.
@@ -201,7 +204,7 @@ class Binary(ABC):
         return None
 
     @abstractmethod
-    def get_version_command(self):
+    def get_version_command(self) -> list[str]:
         """
         Gets the command and its option(s) to check the version.
 
@@ -210,7 +213,7 @@ class Binary(ABC):
         """
 
     @abstractmethod
-    def parse_version(self, version):
+    def parse_version(self, version: str) -> VersionInfo:
         """Parses version string as returned by the command execution to a VersionInfo.
 
         :param version: the return from the version command
@@ -221,14 +224,14 @@ class Binary(ABC):
         """
 
     @abstractmethod
-    def process_download(self, path):
+    def process_download(self, path: str) -> str | None:
         """Processes a downloaded file and returns the executable binary path.
 
         :param path: The downloaded file path
         :return: The executable binary path.
         """
 
-    def _download(self):
+    def _download(self) -> str:
         """Gets the binary from the internet in a specific version.
 
         :return: the command full path after downloaded

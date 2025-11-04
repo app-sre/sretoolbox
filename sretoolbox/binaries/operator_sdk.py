@@ -34,7 +34,7 @@ class OperatorSDK(Binary):
         f"operator-sdk_{system}_amd64"
     )
 
-    def get_version_command(self):
+    def get_version_command(self) -> list[str]:
         """
         Gets the command and its option(s) to check the version.
 
@@ -43,7 +43,7 @@ class OperatorSDK(Binary):
         """
         return [self.command, "version"]
 
-    def parse_version(self, version):
+    def parse_version(self, version: str) -> VersionInfo:
         """Parses version string as returned by the command execution to a VersionInfo.
 
         :param version: the return from the version command
@@ -55,7 +55,7 @@ class OperatorSDK(Binary):
         opm_version = version.split('"')[1].split("v", 1)[1]
         return VersionInfo.parse(version=opm_version)
 
-    def process_download(self, path):
+    def process_download(self, path: str) -> str:
         """
         Processes a downloaded file and returns the executable binary path.
 

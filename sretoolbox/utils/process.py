@@ -15,9 +15,10 @@
 """Abstractions around subprocess"""
 
 import subprocess
+from collections.abc import Sequence
 
 
-def run(cmd):
+def run(cmd: Sequence[str] | str) -> str:
     """Calls subprocess.run with select options."""
     return subprocess.run(  # noqa: S603
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True

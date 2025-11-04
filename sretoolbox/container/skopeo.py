@@ -14,6 +14,8 @@
 
 """Wrapper around the Skopeo utility."""
 
+from __future__ import annotations
+
 import logging
 import shutil
 import subprocess
@@ -28,13 +30,21 @@ class SkopeoCmdError(Exception):
 class Skopeo:
     """Abstracts Skopeo and implements its features."""
 
-    def __init__(self, dry_run=False):
+    def __init__(self, dry_run: bool = False) -> None:
         self.dry_run = dry_run
-        self.skopeo_cmd = shutil.which("skopeo")
+        skopeo_cmd = shutil.which("skopeo")
+        if not skopeo_cmd:
+            raise SkopeoCmdError("skopeo command not found in PATH")
+        self.skopeo_cmd = skopeo_cmd
 
     def copy(
-        self, src_image, dst_image, src_creds=None, dest_creds=None, copy_all=False
-    ):
+        self,
+        src_image: str,
+        dst_image: str,
+        src_creds: str | None = None,
+        dest_creds: str | None = None,
+        copy_all: bool = False,
+    ) -> None:
         """Runs the skopeo "copy" sub-command.
 
         The skopeo "copy" pulls the source image from the online repository
@@ -66,7 +76,7 @@ class Skopeo:
             all_=copy_all,
         )
 
-    def inspect(self, image, creds=None):
+    def inspect(self, image: str, creds: str | None = None) -> None:
         """Runs the skopeo "inspect" sub-command.
 
         The skopeo "inspect" returns low-level information about the image.
@@ -83,8 +93,14 @@ class Skopeo:
         self._run_skopeo("inspect", str(image), creds=creds)
 
     def _run_skopeo(
-        self, subcomand, *args, src_creds=None, dest_creds=None, creds=None, all_=False
-    ):
+        self,
+        subcomand: str,
+        *args: str,
+        src_creds: str | None = None,
+        dest_creds: str | None = None,
+        creds: str | None = None,
+        all_: bool = False,
+    ) -> str:
         """Helper to streamline the execution of skopeo commands
 
         :param subcomand: The skopeo subcommand to execute.
@@ -105,7 +121,7 @@ class Skopeo:
                      command line.
         :type all_: bool
         """
-        cmd = [self.skopeo_cmd, subcomand]
+        cmd: list[str] = [self.skopeo_cmd, subcomand]
 
         if src_creds is not None:
             cmd.append(f"--src-creds={src_creds}")
@@ -132,4 +148,4 @@ class Skopeo:
                 _LOG.error(" %s", line)
             raise SkopeoCmdError(f"exit code: {result.returncode}")
 
-        return result.stdout
+        return result.stdout.decode("utf-8")
