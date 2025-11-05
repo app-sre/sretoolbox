@@ -21,7 +21,7 @@ import sys
 from enum import Enum
 from typing import ClassVar, TextIO
 
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger import json
 
 
 class LoggerType(Enum):
@@ -81,7 +81,7 @@ def _setup_json_logger(name: str, stream: TextIO, level: int) -> logging.Logger:
     """Setup a JSON logger."""
     res = logging.getLogger(name)
     handler = logging.StreamHandler(stream)
-    handler.setFormatter(jsonlogger.JsonFormatter())
+    handler.setFormatter(json.JsonFormatter())
     res.addHandler(handler)
     res.setLevel(level)
     return res
