@@ -82,7 +82,7 @@ def retry(
             for attempt in itertools.count(1):
                 try:
                     return function(*args, **kwargs)
-                except no_retry_exceptions:
+                except no_retry_exceptions:  # noqa: PERF203
                     raise
                 except exceptions as exception:
                     if attempt > max_attempts - 1:

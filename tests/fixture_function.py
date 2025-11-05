@@ -1,12 +1,12 @@
 import sys
-from typing import Any, Never
+from typing import Any
 
 
 def identity(x: Any) -> Any:
     return x
 
 
-def raiser(*_args: Any, **_kwargs: Any) -> Never:
+def raiser(*_args: Any, **_kwargs: Any) -> None:
     raise Exception("Oh noes!")  # noqa: TRY002
 
 
