@@ -71,7 +71,7 @@ class ImageInvalidManifestError(Exception):
     """Raised when there was an error decoding the manifest payload as json"""
 
 
-@dataclass
+@dataclass(frozen=True)
 class ImageData:
     scheme: str
     registry: str
@@ -79,7 +79,6 @@ class ImageData:
     repository: str | None = None
     tag: str | None = None
     digest: str | None = None
-    port: str | None = None
 
 
 class Image:  # noqa: PLW1641
@@ -527,28 +526,30 @@ class Image:  # noqa: PLW1641
 
         image_url_struct = parsed_image_url.groupdict()
 
-        image_data = ImageData(
-            scheme=image_url_struct.get("scheme") or default_scheme,
-            registry=image_url_struct.get("registry") or default_registry,
-            repository=image_url_struct.get("repository"),
-            image=image_url_struct["image"],
-            tag=image_url_struct.get("tag"),
-            digest=image_url_struct.get("digest"),
-            port=image_url_struct.get("port"),
-        )
+        registry = image_url_struct.get("registry") or default_registry
+        port = image_url_struct.get("port")
+        if port is not None:
+            registry += f":{port}"
 
-        if image_data.port is not None:
-            image_data.registry += f":{image_data.port}"
-
-        if image_data.repository is None and image_data.registry == "docker.io":
-            image_data.repository = "library"
+        repository = image_url_struct.get("repository")
+        if repository is None and registry == "docker.io":
+            repository = "library"
 
         # By-digest URIs don't use tags; but otherwise default to `latest` if
         # absent
-        if image_data.digest is None and image_data.tag is None:
-            image_data.tag = default_tag
+        tag = image_url_struct.get("tag")
+        digest = image_url_struct.get("digest")
+        if digest is None and tag is None:
+            tag = default_tag
 
-        return image_data
+        return ImageData(
+            scheme=image_url_struct.get("scheme") or default_scheme,
+            registry=registry,
+            repository=repository,
+            image=image_url_struct["image"],
+            tag=tag,
+            digest=digest,
+        )
 
     @staticmethod
     def _parse_www_auth(value: str) -> dict[str, str]:

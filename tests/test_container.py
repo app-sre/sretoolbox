@@ -102,7 +102,6 @@ PARSER_DATA = [
         ImageData(
             scheme="docker://",
             registry="example-local.com:5000",
-            port="5000",
             repository="my-repo",
             image="my-image",
             tag="build",
@@ -192,7 +191,7 @@ TAG_OVERRIDE_DATA = [
 
 
 class TestContainer:
-    @pytest.mark.parametrize("image, expected_image_data", PARSER_DATA)
+    @pytest.mark.parametrize("image_url, expected_image_data", PARSER_DATA)
     def test_parser(self, image_url: str, expected_image_data: ImageData) -> None:
         image = Image(image_url)
         assert image.scheme == expected_image_data.scheme
@@ -204,12 +203,12 @@ class TestContainer:
         if expected_digest := expected_image_data.digest:
             assert image.digest == expected_digest
 
-    @pytest.mark.parametrize("image, expected_image_url", STR_DATA)
+    @pytest.mark.parametrize("image_url, expected_image_url", STR_DATA)
     def test_str(self, image_url: str, expected_image_url: str) -> None:
         image = Image(image_url)
         assert str(image) == expected_image_url
 
-    @pytest.mark.parametrize("image, tag, expected_image_url", TAG_OVERRIDE_DATA)
+    @pytest.mark.parametrize("image_url, tag, expected_image_url", TAG_OVERRIDE_DATA)
     def test_tag_override(
         self, image_url: str, tag: str, expected_image_url: str
     ) -> None:
