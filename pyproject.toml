@@ -1,6 +1,6 @@
 [project]
 name = "sretoolbox"
-version = "3.1.0"
+version = "3.2.0"
 requires-python = ">=3.10"
 description = "Set of libraries commonly used by multiple SRE projects"
 readme = "README.md"
@@ -23,10 +23,12 @@ documentation = "https://github.com/app-sre/sretoolbox"
 
 [dependency-groups]
 dev = [
-    "pytest==8.4.2",
+    "mypy==1.18.2",
     "pytest-cov==7.0.0",
+    "pytest==8.4.2",
     "requests-mock==1.12.1",
     "ruff==0.14.3",
+    "types-requests==2.32.4.20250913",
 ]
 
 [build-system]
@@ -39,9 +41,10 @@ only-include = ["sretoolbox"]
 [tool.hatch.build.targets.wheel]
 only-include = ["sretoolbox"]
 
+
 # Ruff configuration
 [tool.ruff]
-target-version = 'py311'
+target-version = 'py310'
 line-length = 88
 src = ["sretoolbox", "tests"]
 extend-exclude = [
@@ -96,15 +99,14 @@ ignore = [
     "COM819",
     "ISC001",
     # Room for future improvements and refactoring
-    "ANN",     # Missing annotation
-    "PT",      # Use PyTest stuff instead unittest
-    "RUF012",  # need type annotations
+    "ANN401",  # Dynamically typed expressions (Any) - needed for generic functions
     "B017",    # `assertRaises(Exception)` should be considered evil
-    "PLR6301", # Method `xxx` could be a function, class method, or static method
+    "FBT001",  # boolean-typed parameter must be a positional-only parameter
     "FBT002",  # boolean parameter should be a keyword argument
     "PLR2004", # magic value instead of constant
+    "PLR6301", # Method `xxx` could be a function, class method, or static method
+    "PT",      # Use PyTest stuff instead unittest
     "PTH",     # Prefer Path.xxx over os.xxx
-    "TC003",   # use TYPE_CHECKING
 ]
 [tool.ruff.format]
 preview = true
@@ -114,3 +116,17 @@ known-first-party = ["sretoolbox"]
 
 [tool.coverage.report]
 fail_under = 80
+
+[tool.mypy]
+files = ["sretoolbox", "tests"]
+enable_error_code = ["truthy-bool", "redundant-expr"]
+no_implicit_optional = true
+check_untyped_defs = true
+warn_unused_ignores = true
+show_error_codes = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[[tool.mypy.overrides]]
+module = ["pythonjsonlogger.*", "semver.*"]
+ignore_missing_imports = true

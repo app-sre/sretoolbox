@@ -11,11 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 import io
+from typing import TYPE_CHECKING
 
 import pytest
 
 from sretoolbox.utils.logger import get_json_logger, get_text_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @pytest.mark.parametrize(
@@ -29,7 +35,7 @@ from sretoolbox.utils.logger import get_json_logger, get_text_logger
         {"name": "json2", "message": "message2", "extra": {}},
     ],
 )
-def test_json_logger(params):
+def test_json_logger(params: Mapping) -> None:
     log_capture_string = io.StringIO()
     logger = get_json_logger(name=params["name"], stream=log_capture_string)
 
@@ -52,7 +58,7 @@ def test_json_logger(params):
         {"name": "text2", "message": "message2"},
     ],
 )
-def test_json_logger_simple(params):
+def test_json_logger_simple(params: Mapping) -> None:
     log_capture_string = io.StringIO()
     logger = get_text_logger(name=params["name"], stream=log_capture_string)
     logger.info(params["message"])

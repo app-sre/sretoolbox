@@ -25,7 +25,7 @@ def run(
     func: Callable[..., Any],
     iterable: Iterable[Any],
     thread_pool_size: int,
-    return_exceptions: bool = False,  # noqa: FBT001
+    return_exceptions: bool = False,
     **kwargs: Any,
 ) -> list[Any]:
     """Applies the provided function `func` to each element in the given `iterable`.

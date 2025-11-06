@@ -1,25 +1,26 @@
+from __future__ import annotations
+
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 
-from tests import fixture_function
-
 from sretoolbox.utils import concurrent
+from tests import fixture_function
 
 
 class TestRunProcessStuff(unittest.TestCase):
-    def test_run_no_errors(self):
+    def test_run_no_errors(self) -> None:
         rs = concurrent.pmap(
             fixture_function.identity, [42, 43, 44], ThreadPoolExecutor, 3
         )
         self.assertEqual(rs, [42, 43, 44])
 
-    def test_run_with_exceptions(self):
+    def test_run_with_exceptions(self) -> None:
         with self.assertRaises(Exception):
             concurrent.pmap(
                 fixture_function.raiser, [42, 43, 44], ThreadPoolExecutor, 3
             )
 
-    def test_run_return_exceptions_no_errors(self):
+    def test_run_return_exceptions_no_errors(self) -> None:
         rs = concurrent.pmap(
             fixture_function.identity,
             [42, 43, 44],
@@ -29,7 +30,7 @@ class TestRunProcessStuff(unittest.TestCase):
         )
         self.assertEqual(rs, [42, 43, 44])
 
-    def test_run_return_exceptions_with_exceptions(self):
+    def test_run_return_exceptions_with_exceptions(self) -> None:
         rs = concurrent.pmap(
             fixture_function.raiser,
             [42, 43, 44],
@@ -41,7 +42,7 @@ class TestRunProcessStuff(unittest.TestCase):
         for r in rs:
             self.assertEqual(r.args, ("Oh noes!",))
 
-    def test_run_return_exceptions_mixed_results(self):
+    def test_run_return_exceptions_mixed_results(self) -> None:
         rs = concurrent.pmap(
             fixture_function.return_int_raise_value_error_otherwise,
             [42, 43, "Oh noes!"],
@@ -55,7 +56,7 @@ class TestRunProcessStuff(unittest.TestCase):
         self.assertTrue(isinstance(rs[2], ValueError))
         self.assertEqual(rs[2].args, ("Oh noes!",))
 
-    def test_run_mixed_results(self):
+    def test_run_mixed_results(self) -> None:
         with self.assertRaises(Exception):
             concurrent.pmap(
                 fixture_function.return_int_raise_value_error_otherwise,
@@ -64,7 +65,7 @@ class TestRunProcessStuff(unittest.TestCase):
                 1,
             )
 
-    def test_run_return_exceptions_sys_exit(self):
+    def test_run_return_exceptions_sys_exit(self) -> None:
         rs = concurrent.pmap(
             fixture_function.sys_exit_func,
             [0, 1],
@@ -78,7 +79,7 @@ class TestRunProcessStuff(unittest.TestCase):
         self.assertIsInstance(rs[1], SystemExit)
         self.assertEqual(rs[1].args, (1,))
 
-    def test_sys_exit(self):
+    def test_sys_exit(self) -> None:
         with self.assertRaises(SystemExit):
             concurrent.pmap(
                 fixture_function.sys_exit_func, [0, 1], ThreadPoolExecutor, 2

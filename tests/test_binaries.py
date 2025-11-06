@@ -13,11 +13,14 @@
 # limitations under the License.
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from sretoolbox.binaries import KubectlPackage, Mtcli, Oc, OperatorSDK, Opm
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.mark.parametrize(
@@ -32,8 +35,8 @@ from sretoolbox.binaries import KubectlPackage, Mtcli, Oc, OperatorSDK, Opm
     ],
 )
 def test_download_binaries(
-    instance: KubectlPackage | Mtcli | Oc | OperatorSDK | Opm,
+    instance: type[KubectlPackage | Mtcli | Oc | OperatorSDK | Opm],
     version: str,
     tmp_path: Path,
-):
-    _ = instance(version=version, download_path=tmp_path)
+) -> None:
+    instance(version=version, download_path=tmp_path)

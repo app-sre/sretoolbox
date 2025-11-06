@@ -1,4 +1,6 @@
 # ruff: noqa: S105, S106, SLF001, FURB101, FBT003
+from __future__ import annotations
+
 # Copyright 2021 Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,114 +16,119 @@
 # limitations under the License.
 import locale
 from http import HTTPStatus
-from unittest.mock import create_autospec, patch
+from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 import requests
 from requests.exceptions import HTTPError
+from requests.utils import CaseInsensitiveDict
 
 from sretoolbox.container.image import (
     Image,
     ImageContainsError,
+    ImageData,
     ImageInvalidManifestError,
 )
+
+if TYPE_CHECKING:
+    import requests_mock
 
 TAG = "a61f590"
 A_SHA = "sha256:bc1ed82a75f2ca160225b8281c50b7074e7678c2a1f61b1fb298e545b455925e"
 PARSER_DATA = [
     (
         "quay.io/redhat-user-workloads/trusted-content-tenant/exhort-alpha/exhort:latest",
-        {
-            "scheme": "docker://",
-            "registry": "quay.io",
-            "repository": "redhat-user-workloads",
-            "image": "trusted-content-tenant/exhort-alpha/exhort",
-            "tag": "latest",
-        },
+        ImageData(
+            scheme="docker://",
+            registry="quay.io",
+            repository="redhat-user-workloads",
+            image="trusted-content-tenant/exhort-alpha/exhort",
+            tag="latest",
+        ),
     ),
     (
         "memcached",
-        {
-            "scheme": "docker://",
-            "registry": "docker.io",
-            "repository": "library",
-            "image": "memcached",
-            "tag": "latest",
-        },
+        ImageData(
+            scheme="docker://",
+            registry="docker.io",
+            repository="library",
+            image="memcached",
+            tag="latest",
+        ),
     ),
     (
         "docker.io/memcached",
-        {
-            "scheme": "docker://",
-            "registry": "docker.io",
-            "repository": "library",
-            "image": "memcached",
-            "tag": "latest",
-        },
+        ImageData(
+            scheme="docker://",
+            registry="docker.io",
+            repository="library",
+            image="memcached",
+            tag="latest",
+        ),
     ),
     (
         "library/memcached",
-        {
-            "scheme": "docker://",
-            "registry": "docker.io",
-            "repository": "library",
-            "image": "memcached",
-            "tag": "latest",
-        },
+        ImageData(
+            scheme="docker://",
+            registry="docker.io",
+            repository="library",
+            image="memcached",
+            tag="latest",
+        ),
     ),
     (
         "quay.io/app-sre/qontract-reconcile",
-        {
-            "scheme": "docker://",
-            "registry": "quay.io",
-            "repository": "app-sre",
-            "image": "qontract-reconcile",
-            "tag": "latest",
-        },
+        ImageData(
+            scheme="docker://",
+            registry="quay.io",
+            repository="app-sre",
+            image="qontract-reconcile",
+            tag="latest",
+        ),
     ),
     (
         "docker://docker.io/fedora:28",
-        {
-            "scheme": "docker://",
-            "repository": "library",
-            "registry": "docker.io",
-            "image": "fedora",
-            "tag": "28",
-        },
+        ImageData(
+            scheme="docker://",
+            repository="library",
+            registry="docker.io",
+            image="fedora",
+            tag="28",
+        ),
     ),
     (
         "example-local.com:5000/my-repo/my-image:build",
-        {
-            "scheme": "docker://",
-            "registry": "example-local.com:5000",
-            "port": "5000",
-            "repository": "my-repo",
-            "image": "my-image",
-            "tag": "build",
-        },
+        ImageData(
+            scheme="docker://",
+            registry="example-local.com:5000",
+            repository="my-repo",
+            image="my-image",
+            tag="build",
+        ),
     ),
     (
         "docker://docker.io/tnozicka/openshift-acme:v0.8.0-pre-alpha",
-        {
-            "scheme": "docker://",
-            "registry": "docker.io",
-            "repository": "tnozicka",
-            "image": "openshift-acme",
-            "tag": "v0.8.0-pre-alpha",
-        },
+        ImageData(
+            scheme="docker://",
+            registry="docker.io",
+            repository="tnozicka",
+            image="openshift-acme",
+            tag="v0.8.0-pre-alpha",
+        ),
     ),
     # By digest
     (
         f"quay.io/app-sre/pagerduty-operator-registry@{A_SHA}",
-        {
-            "scheme": "docker://",
-            "registry": "quay.io",
-            "repository": "app-sre",
-            "image": "pagerduty-operator-registry",
+        ImageData(
+            scheme="docker://",
+            registry="quay.io",
+            repository="app-sre",
+            image="pagerduty-operator-registry",
             # Importantly, tag is unset for by-digest URIs
-            "tag": None,
-            "digest": A_SHA,
-        },
+            tag=None,
+            digest=A_SHA,
+        ),
     ),
 ]
 
@@ -184,36 +191,37 @@ TAG_OVERRIDE_DATA = [
 
 
 class TestContainer:
-    @pytest.mark.parametrize("image, expected_struct", PARSER_DATA)
-    def test_parser(self, image, expected_struct):
-        image = Image(image)
-        assert image.scheme == expected_struct["scheme"]
-        assert image.registry == expected_struct["registry"]
-        assert image.repository == expected_struct["repository"]
-        assert image.image == expected_struct["image"]
-        assert image.tag == expected_struct.get("tag")
-        expected_digest = expected_struct.get("digest")
+    @pytest.mark.parametrize("image_url, expected_image_data", PARSER_DATA)
+    def test_parser(self, image_url: str, expected_image_data: ImageData) -> None:
+        image = Image(image_url)
+        assert image.scheme == expected_image_data.scheme
+        assert image.registry == expected_image_data.registry
+        assert image.repository == expected_image_data.repository
+        assert image.image == expected_image_data.image
+        assert image.tag == expected_image_data.tag
         # Condition this to avoid the network.
-        if expected_digest:
+        if expected_digest := expected_image_data.digest:
             assert image.digest == expected_digest
 
-    @pytest.mark.parametrize("image, expected_image_url", STR_DATA)
-    def test_str(self, image, expected_image_url):
-        image = Image(image)
+    @pytest.mark.parametrize("image_url, expected_image_url", STR_DATA)
+    def test_str(self, image_url: str, expected_image_url: str) -> None:
+        image = Image(image_url)
         assert str(image) == expected_image_url
 
-    @pytest.mark.parametrize("image, tag, expected_image_url", TAG_OVERRIDE_DATA)
-    def test_tag_override(self, image, tag, expected_image_url):
-        image = Image(image, tag)
+    @pytest.mark.parametrize("image_url, tag, expected_image_url", TAG_OVERRIDE_DATA)
+    def test_tag_override(
+        self, image_url: str, tag: str, expected_image_url: str
+    ) -> None:
+        image = Image(image_url, tag)
         assert str(image) == expected_image_url
 
-    def test_no_tag(self):
+    def test_no_tag(self) -> None:
         image = Image(f"quay.io/foo/bar@{A_SHA}")
         with pytest.raises(Exception) as e:
             _ = image.url_tag
         assert e.typename == "NoTagForImageByDigestError"
 
-    def test_getitem(self):
+    def test_getitem(self) -> None:
         session = create_autospec(requests.Session)
         timeout = 30
         image = Image(
@@ -244,13 +252,15 @@ class TestRequestGet:
         "application/vnd.oci.image.index.v1+json"
     )
 
-    def test_username_and_password_ok(self, getauth, parseauth, mocked_requests):
+    def test_username_and_password_ok(
+        self, getauth: MagicMock, parseauth: MagicMock, mocked_requests: MagicMock
+    ) -> None:
         r = requests.Response()
         r.status_code = 200
         mocked_requests.request.return_value = r
 
         i = Image("quay.io/foo/bar:latest", username="user", password="pass")
-        i._do_request.__wrapped__(i, "http://www.google.com")
+        i._do_request.__wrapped__(i, "http://www.google.com")  # type: ignore[attr-defined]
 
         mocked_requests.request.assert_called_once_with(
             "GET",
@@ -264,8 +274,8 @@ class TestRequestGet:
         parseauth.assert_not_called()
 
     def test_username_and_password_reauthenticate(
-        self, getauth, parseauth, mocked_requests
-    ):
+        self, getauth: MagicMock, parseauth: MagicMock, mocked_requests: MagicMock
+    ) -> None:
         r = requests.Response()
         r.status_code = 401
         r.headers["Www-Authenticate"] = "something something"
@@ -280,13 +290,15 @@ class TestRequestGet:
         parseauth.return_value = "aparsedauth"
 
         i = Image("quay.io/foo/bar:latest", username="user", password="pass")
-        i._do_request.__wrapped__(i, "http://www.google.com")
+        i._do_request.__wrapped__(i, "http://www.google.com")  # type: ignore[attr-defined]
 
         parseauth.assert_called_once_with("something something")
         assert mocked_requests.request.call_count == 2
         assert i.auth_token == "anauthtoken"
 
-    def test_persistent_failure(self, getauth, parseauth, mocked_requests):
+    def test_persistent_failure(
+        self, getauth: MagicMock, parseauth: MagicMock, mocked_requests: MagicMock
+    ) -> None:
         r = requests.Response()
         r.status_code = 401
         r.headers["Www-Authenticate"] = "something something"
@@ -296,12 +308,14 @@ class TestRequestGet:
 
         i = Image("quay.io/foo/bar:latest", username="user", password="pass")
         with pytest.raises(requests.exceptions.HTTPError):
-            i._do_request.__wrapped__(i, "http://www.google.com")
+            i._do_request.__wrapped__(i, "http://www.google.com")  # type: ignore[attr-defined]
 
         getauth.assert_called_once()
         parseauth.assert_called_once()
 
-    def test_with_session(self, getauth, parseauth, mocked_requests):
+    def test_with_session(
+        self, getauth: MagicMock, parseauth: MagicMock, mocked_requests: MagicMock
+    ) -> None:
         r = requests.Response()
         r.status_code = 200
         session = create_autospec(requests.Session)
@@ -314,7 +328,7 @@ class TestRequestGet:
             session=session,
             timeout=10,
         )
-        i._do_request.__wrapped__(i, "http://www.google.com")
+        i._do_request.__wrapped__(i, "http://www.google.com")  # type: ignore[attr-defined]
 
         session.request.assert_called_once_with(
             "GET",
@@ -330,7 +344,7 @@ class TestRequestGet:
 
 
 @pytest.fixture
-def v1_image_mock(requests_mock):
+def v1_image_mock(requests_mock: requests_mock.Mocker) -> dict[str, Any]:
     with open(
         "tests/fixtures/manifests/v1-image.json",
         encoding=locale.getpreferredencoding(False),
@@ -351,7 +365,7 @@ def v1_image_mock(requests_mock):
 
 
 @pytest.fixture
-def v2_image_mock(requests_mock):
+def v2_image_mock(requests_mock: requests_mock.Mocker) -> dict[str, Any]:
     with open(
         "tests/fixtures/manifests/v2-image.json",
         encoding=locale.getpreferredencoding(False),
@@ -375,7 +389,7 @@ def v2_image_mock(requests_mock):
 
 
 @pytest.fixture
-def v2_fat_image_mock(requests_mock):
+def v2_fat_image_mock(requests_mock: requests_mock.Mocker) -> dict[str, Any]:
     with open(
         "tests/fixtures/manifests/v2-fat-image.json",
         encoding=locale.getpreferredencoding(False),
@@ -397,7 +411,7 @@ def v2_fat_image_mock(requests_mock):
 
 
 @pytest.fixture
-def oci_image_mock(requests_mock):
+def oci_image_mock(requests_mock: requests_mock.Mocker) -> dict[str, Any]:
     with open(
         "tests/fixtures/manifests/oci-image.json",
         encoding=locale.getpreferredencoding(False),
@@ -421,7 +435,7 @@ def oci_image_mock(requests_mock):
 
 
 @pytest.fixture
-def oci_fat_image_mock(requests_mock):
+def oci_fat_image_mock(requests_mock: requests_mock.Mocker) -> dict[str, Any]:
     with open(
         "tests/fixtures/manifests/oci-fat-image.json",
         encoding=locale.getpreferredencoding(False),
@@ -441,7 +455,7 @@ def oci_fat_image_mock(requests_mock):
 
 
 @pytest.fixture
-def no_headers_image_mock(requests_mock):
+def no_headers_image_mock(requests_mock: requests_mock.Mocker) -> dict[str, Any]:
     with open(
         "tests/fixtures/manifests/v2-image.json",
         encoding=locale.getpreferredencoding(False),
@@ -460,7 +474,7 @@ def no_headers_image_mock(requests_mock):
 
 
 @pytest.fixture
-def image_with_digest_mock(requests_mock):
+def image_with_digest_mock(requests_mock: requests_mock.Mocker) -> dict[str, Any]:
     with open(
         "tests/fixtures/manifests/v2-image.json",
         encoding=locale.getpreferredencoding(False),
@@ -483,7 +497,7 @@ def image_with_digest_mock(requests_mock):
 
 
 @pytest.fixture
-def dockerhub_image_mock(requests_mock):
+def dockerhub_image_mock(requests_mock: requests_mock.Mocker) -> dict[str, Any]:
     with open(
         "tests/fixtures/manifests/v2-image.json",
         encoding=locale.getpreferredencoding(False),
@@ -513,7 +527,7 @@ def dockerhub_image_mock(requests_mock):
 
 
 @pytest.fixture
-def redhat_registry_image_mock(requests_mock):
+def redhat_registry_image_mock(requests_mock: requests_mock.Mocker) -> dict[str, Any]:
     with open(
         "tests/fixtures/manifests/ubi8-python39-manifest.json",
         encoding=locale.getpreferredencoding(False),
@@ -554,7 +568,7 @@ def redhat_registry_image_mock(requests_mock):
 
 
 @pytest.fixture
-def invalid_image_manifest_mock(requests_mock):
+def invalid_image_manifest_mock(requests_mock: requests_mock.Mocker) -> dict[str, Any]:
     with open(
         "tests/fixtures/manifests/invalid-image-manifest.json",
         encoding=locale.getpreferredencoding(False),
@@ -584,8 +598,10 @@ def invalid_image_manifest_mock(requests_mock):
 
 
 class TestImageManifest:
-    def test_dockerhub_manifest_unchanged(self, dockerhub_image_mock):
-        cache = {}
+    def test_dockerhub_manifest_unchanged(
+        self, dockerhub_image_mock: dict[str, Any]
+    ) -> None:
+        cache: dict = {}
         token = "Bearer thisIsOneToken"
         i1 = Image(dockerhub_image_mock["url"], response_cache=cache, auth_token=token)
         m1 = i1.manifest
@@ -603,8 +619,10 @@ class TestImageManifest:
         assert i2.response_cache_hits == 1
         assert i2.response_cache_misses == 0
 
-    def test_conditional_manifest_unchanged(self, redhat_registry_image_mock):
-        cache = {}
+    def test_conditional_manifest_unchanged(
+        self, redhat_registry_image_mock: dict[str, Any]
+    ) -> None:
+        cache: dict = {}
         i1 = Image(redhat_registry_image_mock["url"], response_cache=cache)
         m1 = i1.manifest
 
@@ -621,12 +639,14 @@ class TestImageManifest:
         assert i2.response_cache_hits == 1
         assert i2.response_cache_misses == 0
 
-    def test_dockerhub_manifest_changed(self, dockerhub_image_mock):
+    def test_dockerhub_manifest_changed(
+        self, dockerhub_image_mock: dict[str, Any]
+    ) -> None:
         rsp = requests.Response()
-        rsp.headers = {"Docker-Content-Digest": "sha256:abc"}
+        rsp.headers = CaseInsensitiveDict({"Docker-Content-Digest": "sha256:abc"})
         username = "username"
         key = (dockerhub_image_mock["manifest_url"], username)
-        cache = {key: rsp}
+        cache: dict = {key: rsp}
 
         i = Image(
             dockerhub_image_mock["url"],
@@ -641,15 +661,17 @@ class TestImageManifest:
         assert i.response_cache_hits == 0
         assert i.response_cache_misses == 1
 
-    def test_conditional_manifest_changed(self, redhat_registry_image_mock):
+    def test_conditional_manifest_changed(
+        self, redhat_registry_image_mock: dict[str, Any]
+    ) -> None:
         rsp = requests.Response()
-        rsp.headers = {
+        rsp.headers = CaseInsensitiveDict({
             "ETag": '"57255d4ca9aa3afba99de2992de0f178:1556889119.378372"',
             "Last-Modified": "Thu, 23 Oct 2022 15:33:48 GMT",
-        }
+        })
         username = "username"
         key = (redhat_registry_image_mock["manifest_url"], username)
-        cache = {key: rsp}
+        cache: dict = {key: rsp}
 
         i = Image(
             redhat_registry_image_mock["url"],
@@ -664,7 +686,9 @@ class TestImageManifest:
         assert i.response_cache_hits == 0
         assert i.response_cache_misses == 1
 
-    def test_invalid_image_manifest(self, invalid_image_manifest_mock):
+    def test_invalid_image_manifest(
+        self, invalid_image_manifest_mock: dict[str, Any]
+    ) -> None:
         image = Image(invalid_image_manifest_mock["url"])
         with pytest.raises(ImageInvalidManifestError):
             _ = image.manifest
@@ -673,12 +697,12 @@ class TestImageManifest:
 class TestImageComparison:
     def test_v1_image_comparisons(
         self,
-        v1_image_mock,
-        v2_image_mock,
-        v2_fat_image_mock,
-        oci_image_mock,
-        oci_fat_image_mock,
-    ):
+        v1_image_mock: dict[str, Any],
+        v2_image_mock: dict[str, Any],
+        v2_fat_image_mock: dict[str, Any],
+        oci_image_mock: dict[str, Any],
+        oci_fat_image_mock: dict[str, Any],
+    ) -> None:
         v1_image = Image(v1_image_mock["url"])
         v2_image = Image(v2_image_mock["url"])
         v2_fat_image = Image(v2_fat_image_mock["url"])
@@ -693,12 +717,12 @@ class TestImageComparison:
 
     def test_v2_image_comparisons(
         self,
-        v1_image_mock,
-        v2_image_mock,
-        v2_fat_image_mock,
-        oci_image_mock,
-        oci_fat_image_mock,
-    ):
+        v1_image_mock: dict[str, Any],
+        v2_image_mock: dict[str, Any],
+        v2_fat_image_mock: dict[str, Any],
+        oci_image_mock: dict[str, Any],
+        oci_fat_image_mock: dict[str, Any],
+    ) -> None:
         v1_image = Image(v1_image_mock["url"])
         v2_image = Image(v2_image_mock["url"])
         v2_fat_image = Image(v2_fat_image_mock["url"])
@@ -713,12 +737,12 @@ class TestImageComparison:
 
     def test_v2_fat_image_comparisons(
         self,
-        v1_image_mock,
-        v2_image_mock,
-        v2_fat_image_mock,
-        oci_image_mock,
-        oci_fat_image_mock,
-    ):
+        v1_image_mock: dict[str, Any],
+        v2_image_mock: dict[str, Any],
+        v2_fat_image_mock: dict[str, Any],
+        oci_image_mock: dict[str, Any],
+        oci_fat_image_mock: dict[str, Any],
+    ) -> None:
         v1_image = Image(v1_image_mock["url"])
         v2_image = Image(v2_image_mock["url"])
         v2_fat_image = Image(v2_fat_image_mock["url"])
@@ -733,12 +757,12 @@ class TestImageComparison:
 
     def test_oci_image_comparisons(
         self,
-        v1_image_mock,
-        v2_image_mock,
-        v2_fat_image_mock,
-        oci_image_mock,
-        oci_fat_image_mock,
-    ):
+        v1_image_mock: dict[str, Any],
+        v2_image_mock: dict[str, Any],
+        v2_fat_image_mock: dict[str, Any],
+        oci_image_mock: dict[str, Any],
+        oci_fat_image_mock: dict[str, Any],
+    ) -> None:
         v1_image = Image(v1_image_mock["url"])
         v2_image = Image(v2_image_mock["url"])
         v2_fat_image = Image(v2_fat_image_mock["url"])
@@ -753,12 +777,12 @@ class TestImageComparison:
 
     def test_oci_fat_image_comparisons(
         self,
-        v1_image_mock,
-        v2_image_mock,
-        v2_fat_image_mock,
-        oci_image_mock,
-        oci_fat_image_mock,
-    ):
+        v1_image_mock: dict[str, Any],
+        v2_image_mock: dict[str, Any],
+        v2_fat_image_mock: dict[str, Any],
+        oci_image_mock: dict[str, Any],
+        oci_fat_image_mock: dict[str, Any],
+    ) -> None:
         v1_image = Image(v1_image_mock["url"])
         v2_image = Image(v2_image_mock["url"])
         v2_fat_image = Image(v2_fat_image_mock["url"])
@@ -773,38 +797,38 @@ class TestImageComparison:
 
 
 class TestManifestAccessors:
-    def test_no_content_type(self, no_headers_image_mock):
+    def test_no_content_type(self, no_headers_image_mock: dict[str, Any]) -> None:
         image = Image(no_headers_image_mock["url"])
         with pytest.raises(HTTPError):
             _ = image.content_type
 
-    def test_no_digest(self, no_headers_image_mock):
+    def test_no_digest(self, no_headers_image_mock: dict[str, Any]) -> None:
         image = Image(no_headers_image_mock["url"])
         with pytest.raises(HTTPError):
             _ = image.digest
 
-    def test_manifest_cached(self, v2_image_mock):
+    def test_manifest_cached(self, v2_image_mock: dict[str, Any]) -> None:
         image = Image(v2_image_mock["url"])
         for _i in range(4):
             _ = image.manifest
 
         assert v2_image_mock["mock"].call_count == 1
 
-    def test_content_type_cached(self, v2_image_mock):
+    def test_content_type_cached(self, v2_image_mock: dict[str, Any]) -> None:
         image = Image(v2_image_mock["url"])
         for _i in range(4):
             _ = image.content_type
 
         assert v2_image_mock["mock"].call_count == 1
 
-    def test_digest_cached(self, v2_image_mock):
+    def test_digest_cached(self, v2_image_mock: dict[str, Any]) -> None:
         image = Image(v2_image_mock["url"])
         for _i in range(4):
             _ = image.digest
 
         assert v2_image_mock["mock"].call_count == 1
 
-    def test_manifest_caches_other_headers(self, v2_image_mock):
+    def test_manifest_caches_other_headers(self, v2_image_mock: dict[str, Any]) -> None:
         image = Image(v2_image_mock["url"])
 
         _ = image.manifest
@@ -816,31 +840,42 @@ class TestManifestAccessors:
         _ = image.digest
         assert v2_image_mock["mock"].call_count == 1
 
-    def test_digest_cached_from_arguments(self, image_with_digest_mock):
+    def test_digest_cached_from_arguments(
+        self, image_with_digest_mock: dict[str, Any]
+    ) -> None:
         image = Image(image_with_digest_mock["url"])
         _ = image.digest
         assert image_with_digest_mock["mock"].call_count == 0
 
 
 class TestImageIsPartOf:
-    def test_v2_image_contains(self, v2_image_mock, v2_fat_image_mock):
+    def test_v2_image_contains(
+        self, v2_image_mock: dict[str, Any], v2_fat_image_mock: dict[str, Any]
+    ) -> None:
         v2_image = Image(v2_image_mock["url"])
         v2_fat_image = Image(v2_fat_image_mock["url"])
         assert v2_image.is_part_of(v2_fat_image)
 
-    def test_oci_image_contains(self, oci_image_mock, oci_fat_image_mock):
+    def test_oci_image_contains(
+        self, oci_image_mock: dict[str, Any], oci_fat_image_mock: dict[str, Any]
+    ) -> None:
         oci_image = Image(oci_image_mock["url"])
         oci_fat_image = Image(oci_fat_image_mock["url"])
         assert oci_image.is_part_of(oci_fat_image)
 
-    def test_image_does_not_contain(self, image_with_digest_mock, v2_fat_image_mock):
+    def test_image_does_not_contain(
+        self, image_with_digest_mock: dict[str, Any], v2_fat_image_mock: dict[str, Any]
+    ) -> None:
         image = Image(image_with_digest_mock["url"])
         fat_image = Image(v2_fat_image_mock["url"])
         assert not image.is_part_of(fat_image)
 
     def test_bad_contains_member(
-        self, v1_image_mock, v2_fat_image_mock, oci_fat_image_mock
-    ):
+        self,
+        v1_image_mock: dict[str, Any],
+        v2_fat_image_mock: dict[str, Any],
+        oci_fat_image_mock: dict[str, Any],
+    ) -> None:
         v1_image = Image(v1_image_mock["url"])
         v2_fat_image = Image(v2_fat_image_mock["url"])
         oci_fat_image = Image(oci_fat_image_mock["url"])
@@ -855,8 +890,11 @@ class TestImageIsPartOf:
             oci_fat_image.is_part_of(v2_fat_image)
 
     def test_bad_contains_collection(
-        self, v1_image_mock, v2_image_mock, oci_image_mock
-    ):
+        self,
+        v1_image_mock: dict[str, Any],
+        v2_image_mock: dict[str, Any],
+        oci_image_mock: dict[str, Any],
+    ) -> None:
         v1_image = Image(v1_image_mock["url"])
         v2_image = Image(v2_image_mock["url"])
         oci_image = Image(oci_image_mock["url"])

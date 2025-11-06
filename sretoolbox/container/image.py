@@ -14,15 +14,22 @@
 
 """Abstractions around container images."""
 
+from __future__ import annotations
+
 import logging
 import re
+from dataclasses import dataclass
 from http import HTTPStatus
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import requests
 from requests.exceptions import HTTPError
 from requests.exceptions import JSONDecodeError as RequestsJSONDecodeError
 
 from sretoolbox.utils import retry
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
 
 _LOG = logging.getLogger(__name__)
 
@@ -56,12 +63,22 @@ class NoTagForImageByDigestError(Exception):
     attempted that requires a tag.
     """
 
-    def __init__(self, image):
+    def __init__(self, image: Image) -> None:
         super().__init__(f"Can't determine a unique tag for Image: {image!s}")
 
 
 class ImageInvalidManifestError(Exception):
     """Raised when there was an error decoding the manifest payload as json"""
+
+
+@dataclass(frozen=True)
+class ImageData:
+    scheme: str
+    registry: str
+    image: str
+    repository: str | None = None
+    tag: str | None = None
+    digest: str | None = None
 
 
 class Image:  # noqa: PLW1641
@@ -85,7 +102,7 @@ class Image:  # noqa: PLW1641
 
     # This is a method dispatcher to handle how to handle responses that are
     # already present in the response_cache
-    _HANDLE_RESPONSE_CACHE_METHODS = {
+    _HANDLE_RESPONSE_CACHE_METHODS: ClassVar[dict[str, str]] = {
         "docker.io": "_handle_docker_content_digest",
         "quay.io": "_handle_docker_content_digest",
         "gcr.io": "_handle_docker_content_digest",
@@ -94,44 +111,36 @@ class Image:  # noqa: PLW1641
 
     def __init__(
         self,
-        url,
-        tag_override=None,
-        username=None,
-        password=None,
-        auth_server=None,
-        response_cache=None,
-        auth_token=None,
-        ssl_verify=True,
-        session=None,
-        timeout=None,
-    ):
+        url: str,
+        tag_override: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        auth_server: str | None = None,
+        response_cache: dict[tuple[str, str | None], requests.Response] | None = None,
+        auth_token: str | None = None,
+        ssl_verify: bool = True,
+        session: requests.Session | None = None,
+        timeout: float | tuple[float, float] | None = None,
+    ) -> None:
         image_data = self._parse_image_url(url)
-        self.scheme = image_data["scheme"]
-        self.registry = image_data["registry"]
-        self.repository = image_data["repository"]
-        self.image = image_data["image"]
+        self.scheme = image_data.scheme
+        self.registry = image_data.registry
+        self.repository = image_data.repository
+        self.image = image_data.image
         self.response_cache = response_cache
         self.ssl_verify = ssl_verify
         self.session = session
         self.timeout = timeout
 
         self.auth_token = auth_token
-        if tag_override is None:
-            self.tag = image_data["tag"]
-        else:
-            self.tag = tag_override
-
-        self._cache_digest = None
-        # If the URL was by-digest, we can cache this right away.
-        if image_data["digest"]:
-            self._cache_digest = f"{image_data['digest']}"
+        self.tag = tag_override or image_data.tag
 
         self.username = username
         self.password = password
-        if all([username is not None, password is not None]):
+        self.auth = None
+        if username is not None and password is not None:
             self.auth = (username, password)
-        else:
-            self.auth = None
+
         # When the auth_server is provided, we must check if
         # it matches the registry, otherwise we don't send the
         # auth headers (to avoid leaking the credentials)
@@ -139,27 +148,25 @@ class Image:  # noqa: PLW1641
         if self.auth_server is not None and self.auth_server != self.registry:
             self.auth = None
 
+        self.registry_api = f"https://{self.registry}"
         if self.registry == "docker.io":
             self.registry_api = "https://registry-1.docker.io"
-        else:
-            self.registry_api = f"https://{self.registry}"
 
-        self._cache_tags = None
-        self._cache_manifest = None
-        self._cache_content_type = None
+        self.response_cache_hits = self.response_cache_misses = 0
 
-        if self.response_cache is not None:
-            self.response_cache_hits = self.response_cache_misses = 0
-        else:
-            self.response_cache_hits = self.response_cache_misses = None
+        self._cache_tags: list[str] | None = None
+        self._cache_manifest: dict[str, Any] | None = None
+        self._cache_content_type: str | None = None
+        # If the URL was by-digest, we can cache this right away.
+        self._cache_digest = str(image_data.digest) if image_data.digest else None
 
-    def _can_response_be_cached(self):
+    def _can_response_be_cached(self) -> bool:
         # Determines if we have a method to handle response cache entries for
         # the given registry
         return self.registry in self._HANDLE_RESPONSE_CACHE_METHODS
 
     @property
-    def content_type(self):
+    def content_type(self) -> str:
         """Return the Content-Type header from the manifest retrieval.
 
         It caches the result.
@@ -173,7 +180,7 @@ class Image:  # noqa: PLW1641
         return self._cache_content_type
 
     @property
-    def digest(self):
+    def digest(self) -> str:
         """Return the Docker-Content-Digest header from the manifest retrieval.
 
         It caches the result.
@@ -186,13 +193,18 @@ class Image:  # noqa: PLW1641
 
         return self._cache_digest
 
-    def _requester(self):
+    def _requester(self) -> Callable[..., requests.Response]:
         if self.session is not None:
             return self.session.request
         return requests.request
 
     @retry(exceptions=(HTTPError, requests.ConnectionError), max_attempts=5)
-    def _do_request(self, url, method="GET", headers=None):
+    def _do_request(
+        self,
+        url: str,
+        method: str = "GET",
+        headers: dict[str, str] | None = None,
+    ) -> requests.Response:
         # Use any cached tokens, they may still be valid
         request_headers = {
             "Accept": f"{SCHEMA1_MANIFEST_MEDIA_TYPE},{SCHEMA1_SIGNED_MANIFEST_MEDIA_TYPE},{SCHEMA2_MANIFEST_MEDIA_TYPE},{SCHEMA2_MANIFEST_LIST_MEDIA_TYPE},{OCI_MANIFEST_MEDIA_TYPE},{OCI_IMAGE_INDEX_MEDIA_TYPE}"
@@ -223,6 +235,7 @@ class Image:  # noqa: PLW1641
             if auth_specs is None:
                 self._raise_for_status(response)
 
+            assert auth_specs is not None  # for mypy
             www_auth = self._parse_www_auth(auth_specs)
 
             # Try again, with the new Authorization header
@@ -235,12 +248,12 @@ class Image:  # noqa: PLW1641
         self._raise_for_status(response)
         return response
 
-    def _get_cache_key(self, url):
+    def _get_cache_key(self, url: str) -> tuple[str, str | None]:
         # Returns the cache key. It uses the username as entries in the cache
         # may have been added by a different user with different permissions.
         return (url, self.username)
 
-    def _get_manifest(self):
+    def _get_manifest(self) -> requests.Response:
         # Retrieve the image manifest from the internet or from the response
         # cache if it exists.
         url = f"{self.registry_api}/v2"
@@ -271,7 +284,7 @@ class Image:  # noqa: PLW1641
 
         return self.response_cache[key]
 
-    def _get_tags(self):
+    def _get_tags(self) -> list[str]:
         """Goes to the internet to retrieve all the image tags."""
         tags_per_page = 50
 
@@ -300,10 +313,12 @@ class Image:  # noqa: PLW1641
 
         return all_tags
 
-    def _handle_conditional_request(self, url):
+    def _handle_conditional_request(self, url: str) -> requests.Response:
         # Handle response cache entries using conditional requests.
         headers = {}
         key = self._get_cache_key(url)
+        if self.response_cache is None:
+            raise RuntimeError("response_cache is None")
         cached_response = self.response_cache[key]
 
         etag = cached_response.headers.get("ETag")
@@ -325,13 +340,15 @@ class Image:  # noqa: PLW1641
         self.response_cache_misses += 1
         return rsp
 
-    def _handle_docker_content_digest(self, url):
+    def _handle_docker_content_digest(self, url: str) -> requests.Response:
         # Handle response cache entries using Docker-Content-Digest header.
         # This method has been inspired by DockerHub, which doesn't support
         # proper conditional requests but doesn't count HEAD requests towards
         # quota. See https://docs.docker.com/docker-hub/download-rate-limit/
         # to have more details.
         key = self._get_cache_key(url)
+        if self.response_cache is None:
+            raise RuntimeError("response_cache is None")
         cached_response = self.response_cache[key]
         header = "Docker-Content-Digest"
 
@@ -351,7 +368,7 @@ class Image:  # noqa: PLW1641
         self.response_cache_hits += 1
         return cached_response
 
-    def is_from(self, other):
+    def is_from(self, other: Image) -> bool:
         """Checks if the the other image served as base image for the current image.
 
         :param other: The base image to check against
@@ -359,12 +376,15 @@ class Image:  # noqa: PLW1641
         :return: True if the current image has the other image as base
         :rtype: bool
         """
+        if not other.manifest or not self.manifest:
+            return False
+
         for layer in other.manifest["fsLayers"]:
             if layer not in self.manifest["fsLayers"]:
                 return False
         return True
 
-    def is_part_of(self, other):
+    def is_part_of(self, other: Image) -> bool:
         """Checks if this single-arch image is part of the given multi-arch image
 
         :param other: The multi-arch image to check against
@@ -384,6 +404,9 @@ class Image:  # noqa: PLW1641
                 f"Unsupported image content type in {other}: '{other.content_type}'"
             )
 
+        if not other.manifest:
+            return False
+
         for manifest in other.manifest["manifests"]:
             if manifest["digest"] == self.digest:
                 return True
@@ -391,7 +414,7 @@ class Image:  # noqa: PLW1641
         return False
 
     @property
-    def manifest(self):
+    def manifest(self) -> dict[str, Any] | None:
         """Property to return the manifest. It caches the result."""
         if self._cache_manifest is None:
             try:
@@ -412,7 +435,7 @@ class Image:  # noqa: PLW1641
 
         return self._cache_manifest
 
-    def _get_auth(self, www_auth):
+    def _get_auth(self, www_auth: dict[str, str]) -> str:
         """Generates the authorization string.
 
         The authorization string uses the token acquired from the www_auth endpoint.
@@ -438,7 +461,7 @@ class Image:  # noqa: PLW1641
         return f"{scheme} {data}"
 
     @staticmethod
-    def _parse_image_url(image_url):
+    def _parse_image_url(image_url: str) -> ImageData:
         """Parser to split the image urls in its multiple components.
 
         Images are provided as URLs. E.g.:
@@ -503,32 +526,34 @@ class Image:  # noqa: PLW1641
 
         image_url_struct = parsed_image_url.groupdict()
 
-        if image_url_struct.get("scheme") is None:
-            image_url_struct["scheme"] = default_scheme
-
-        if image_url_struct.get("registry") is None:
-            image_url_struct["registry"] = default_registry
-
+        registry = image_url_struct.get("registry") or default_registry
         port = image_url_struct.get("port")
         if port is not None:
-            image_url_struct["registry"] += f":{port}"
+            registry += f":{port}"
 
-        if image_url_struct.get("repository") is None:
-            if image_url_struct["registry"] == "docker.io":
-                image_url_struct["repository"] = "library"
-            else:
-                image_url_struct["repository"] = None
+        repository = image_url_struct.get("repository")
+        if repository is None and registry == "docker.io":
+            repository = "library"
 
         # By-digest URIs don't use tags; but otherwise default to `latest` if
         # absent
-        if all(image_url_struct.get(x) is None for x in ("tag", "digest")):
-            image_url_struct["tag"] = default_tag
+        tag = image_url_struct.get("tag")
+        digest = image_url_struct.get("digest")
+        if digest is None and tag is None:
+            tag = default_tag
 
-        return image_url_struct
+        return ImageData(
+            scheme=image_url_struct.get("scheme") or default_scheme,
+            registry=registry,
+            repository=repository,
+            image=image_url_struct["image"],
+            tag=tag,
+            digest=digest,
+        )
 
     @staticmethod
-    def _parse_www_auth(value):
-        www_authenticate = {}
+    def _parse_www_auth(value: str) -> dict[str, str]:
+        www_authenticate: dict[str, str] = {}
         www_authenticate["scheme"], params = value.split(" ", 1)
 
         # According to the RFC6750, the scheme MUST be followed by
@@ -540,7 +565,9 @@ class Image:  # noqa: PLW1641
 
         return www_authenticate
 
-    def _raise_for_status(self, response, error_msg=None):
+    def _raise_for_status(
+        self, response: requests.Response, error_msg: str | None = None
+    ) -> None:
         """Includes the error messages, important for a registry"""
         try:
             response.raise_for_status()
@@ -558,7 +585,7 @@ class Image:  # noqa: PLW1641
             raise HTTPError(msg, response=response) from e
 
     @property
-    def tags(self):
+    def tags(self) -> list[str]:
         """Returns the list of tags."""
         if self._cache_tags is None:
             try:
@@ -569,7 +596,7 @@ class Image:  # noqa: PLW1641
         return self._cache_tags
 
     @property
-    def url_digest(self):
+    def url_digest(self) -> str:
         """Returns the image url in the digest format."""
         url_digest = f"{self.registry}"
         if self.repository is not None:
@@ -578,7 +605,7 @@ class Image:  # noqa: PLW1641
         return url_digest
 
     @property
-    def url_tag(self):
+    def url_tag(self) -> str:
         """
         Returns the image url in the tag format.
 
@@ -595,13 +622,13 @@ class Image:  # noqa: PLW1641
         url_tag += f"/{self.image}:{self.tag}"
         return url_tag
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return self.manifest is not None
 
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         return item in self.tags
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Image):
             return False
         try:
@@ -609,6 +636,9 @@ class Image:  # noqa: PLW1641
             other_manifest = other.manifest
         except HTTPError as details:
             raise ImageComparisonError(details) from details
+
+        if not manifest or not other_manifest:
+            return False
 
         manifest_version = manifest["schemaVersion"]
         other_manifest_version = other_manifest["schemaVersion"]
@@ -637,7 +667,7 @@ class Image:  # noqa: PLW1641
 
         return manifest[layers_key] == other_manifest[layers_key]
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> Image:
         return Image(
             url=str(self),
             tag_override=str(item),
@@ -650,15 +680,15 @@ class Image:  # noqa: PLW1641
             timeout=self.timeout,
         )
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         yield from self.tags
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.tags)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(url='{self}')"
 
-    def __str__(self):
+    def __str__(self) -> str:
         url = self.url_digest if self.tag is None else self.url_tag
         return f"{self.scheme}{url}"

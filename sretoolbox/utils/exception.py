@@ -27,6 +27,6 @@ class SystemExitWrapperError(Exception):
     without having negative impact.
     """
 
-    def __init__(self, original_sys_exit_exception):
+    def __init__(self, original_sys_exit_exception: SystemExit) -> None:
         super().__init__(original_sys_exit_exception)
         self.original_sys_exit_exception = original_sys_exit_exception
