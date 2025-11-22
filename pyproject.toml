@@ -25,9 +25,9 @@ documentation = "https://github.com/app-sre/sretoolbox"
 dev = [
     "mypy==1.18.2",
     "pytest-cov==7.0.0",
-    "pytest==9.0.0",
+    "pytest==9.0.1",
     "requests-mock==1.12.1",
-    "ruff==0.14.4",
+    "ruff==0.14.6",
     "types-requests==2.32.4.20250913",
 ]
 
