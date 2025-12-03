@@ -1,6 +1,6 @@
 # vi:set ft=dockerfile:
 FROM registry.access.redhat.com/ubi9-minimal@sha256:161a4e29ea482bab6048c2b36031b4f302ae81e4ff18b83e61785f40dc576f5d AS test
-COPY --from=ghcr.io/astral-sh/uv:0.9.14@sha256:fef8e5fb8809f4b57069e919ffcd1529c92b432a2c8d8ad1768087b0b018d840 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.9.15@sha256:f739908ce28d7303646e25e4613906d23c08a69397f4a52b989aac23148ee971 /uv /bin/uv
 COPY LICENSE /licenses/
 
 RUN microdnf install -y make && microdnf clean all
