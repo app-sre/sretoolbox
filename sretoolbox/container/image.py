@@ -420,7 +420,7 @@ class Image:  # noqa: PLW1641
             try:
                 manifest = self._get_manifest()
             except HTTPError as e:
-                if e.response and e.response.status_code == HTTPStatus.NOT_FOUND:
+                if e.response is not None and e.response.status_code == HTTPStatus.NOT_FOUND:
                     return None
                 raise
             try:
