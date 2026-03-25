@@ -848,6 +848,53 @@ class TestManifestAccessors:
         assert image_with_digest_mock["mock"].call_count == 0
 
 
+class TestImage404Handling:
+    def test_bool_returns_false_for_404(
+        self, requests_mock: requests_mock.Mocker
+    ) -> None:
+        """Test that bool(Image) returns False for 404 responses instead of raising HTTPError.
+
+        This test verifies the fix for the bug where Response.__bool__() returns False
+        for error status codes, causing the condition check to short-circuit.
+        """
+        requests_mock.get(
+            "https://quay.io/v2/test/nonexistent/manifests/latest",
+            status_code=HTTPStatus.NOT_FOUND,
+            json={"errors": [{"message": "manifest unknown"}]},
+        )
+
+        image = Image("quay.io/test/nonexistent:latest")
+        # Should return False, not raise HTTPError
+        assert bool(image) is False
+
+    def test_manifest_returns_none_for_404(
+        self, requests_mock: requests_mock.Mocker
+    ) -> None:
+        """Test that Image.manifest returns None for 404 responses."""
+        requests_mock.get(
+            "https://quay.io/v2/test/nonexistent/manifests/latest",
+            status_code=HTTPStatus.NOT_FOUND,
+            json={"errors": [{"message": "manifest unknown"}]},
+        )
+
+        image = Image("quay.io/test/nonexistent:latest")
+        assert image.manifest is None
+
+    def test_other_http_errors_still_raise(
+        self, requests_mock: requests_mock.Mocker
+    ) -> None:
+        """Test that non-404 HTTP errors still raise HTTPError."""
+        requests_mock.get(
+            "https://quay.io/v2/test/unauthorized/manifests/latest",
+            status_code=HTTPStatus.UNAUTHORIZED,
+            json={"errors": [{"message": "authentication required"}]},
+        )
+
+        image = Image("quay.io/test/unauthorized:latest")
+        with pytest.raises(HTTPError):
+            _ = bool(image)
+
+
 class TestImageIsPartOf:
     def test_v2_image_contains(
         self, v2_image_mock: dict[str, Any], v2_fat_image_mock: dict[str, Any]
