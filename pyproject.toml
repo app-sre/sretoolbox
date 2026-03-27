@@ -27,7 +27,7 @@ dev = [
     "pytest-cov==7.1.0",
     "pytest==9.0.2",
     "requests-mock==1.12.1",
-    "ruff==0.15.7",
+    "ruff==0.15.8",
     "types-requests==2.32.4.20260324",
 ]
 
