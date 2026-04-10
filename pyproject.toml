@@ -23,12 +23,12 @@ documentation = "https://github.com/app-sre/sretoolbox"
 
 [dependency-groups]
 dev = [
-    "mypy==1.19.1",
+    "mypy==1.20.0",
     "pytest-cov==7.1.0",
-    "pytest==9.0.2",
+    "pytest==9.0.3",
     "requests-mock==1.12.1",
-    "ruff==0.15.8",
-    "types-requests==2.32.4.20260324",
+    "ruff==0.15.9",
+    "types-requests==2.33.0.20260408",
 ]
 
 [build-system]
