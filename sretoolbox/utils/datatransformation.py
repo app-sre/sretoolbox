@@ -14,7 +14,7 @@
 
 """Utilities to transform data."""
 
-from typing import Any, TypeVar
+from typing import Any
 
 
 def replace_values(obj: Any, replace_map: dict[Any, Any]) -> Any:
@@ -38,10 +38,7 @@ def replace_values(obj: Any, replace_map: dict[Any, Any]) -> Any:
     return obj
 
 
-KeyType = TypeVar("KeyType")
-
-
-def deep_merge(
+def deep_merge[KeyType](
     dict1: dict[KeyType, Any], dict2: dict[KeyType, Any]
 ) -> dict[KeyType, Any]:
     """Merge two dictionaries recursively"""

@@ -15,8 +15,6 @@ check:
 	uv run ruff format --check
 	uv run ruff check --no-fix
 	uv run mypy
-	uv run --python=3.10 $(PYTEST_CMD)
-	uv run --python=3.11 $(PYTEST_CMD)
 	uv run --python=3.12 $(PYTEST_CMD)
 	uv run --python=3.13 $(PYTEST_CMD)
 	uv run --python=3.14 $(PYTEST_CMD)
