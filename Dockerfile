@@ -3,7 +3,9 @@ FROM registry.access.redhat.com/ubi10/python-314-minimal@sha256:0c5b5d198178280e
 COPY --from=ghcr.io/astral-sh/uv:0.11.17@sha256:03bdc89bb9798628846e60c3a9ad19006c8c3c724ccd2985a33145c039a0577b /uv /bin/uv
 COPY LICENSE /licenses/
 
+USER 0
 RUN microdnf install -y make && microdnf clean all
+USER 1001
 WORKDIR /app
 
 # Install build dependencies
