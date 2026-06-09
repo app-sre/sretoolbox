@@ -130,6 +130,18 @@ PARSER_DATA = [
             digest=A_SHA,
         ),
     ),
+    # By tag and digest (e.g. Konflux images: image:tag@sha256:...)
+    (
+        f"quay.io/redhat-user-workloads/app-sre-tenant/qontract-server-master/qontract-server-master:{TAG}@{A_SHA}",
+        ImageData(
+            scheme="docker://",
+            registry="quay.io",
+            repository="redhat-user-workloads",
+            image="app-sre-tenant/qontract-server-master/qontract-server-master",
+            tag=TAG,
+            digest=A_SHA,
+        ),
+    ),
 ]
 
 STR_DATA = [
