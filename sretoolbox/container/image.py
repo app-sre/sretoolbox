@@ -159,6 +159,13 @@ class Image:  # noqa: PLW1641
         self._cache_content_type: str | None = None
         # If the URL was by-digest, we can cache this right away.
         self._cache_digest = str(image_data.digest) if image_data.digest else None
+        # True only when both tag and digest were in the original URL and no
+        # tag_override was applied — meaning the digest still corresponds to the tag.
+        self._digest_paired_with_tag = (
+            image_data.tag is not None
+            and image_data.digest is not None
+            and tag_override is None
+        )
 
     def _can_response_be_cached(self) -> bool:
         # Determines if we have a method to handle response cache entries for
@@ -498,11 +505,10 @@ class Image:  # noqa: PLW1641
         default_registry = "docker.io"
         default_tag = "latest"
 
-        # The image is either specified by digest (...@sha256:xxxx...) or
-        # by tag (...:tag-name). We decide based on the presence of the
-        # '@' or the ':'. If we find neither, by-tag is assumed,
+        # Images can be specified by tag (:tag), digest (@sha256:...), or both
+        # (:tag@sha256:...). If neither is present, by-tag is assumed,
         # defaulting to 'latest'.
-        parsed_image_url = re.search(
+        parsed_image_url = re.fullmatch(
             r"(?P<scheme>\w+://)?"  # Scheme (optional) e.g. docker://
             r"(?P<registry>[\w\-]+[.][\w\-.]+)?"  # Registry domain (optional)
             r"(?(registry)(?P<port_colon>[:]))?"  # Port colon (optional)
@@ -511,16 +517,8 @@ class Image:  # noqa: PLW1641
             r"(?P<repository>[\w\-]+)?"  # Repository (optional)
             r"(?(repository)(?P<repo_slash>/))"  # Slash, if repo is present
             r"(?P<image>[\w\-./]+)"  # Image path (mandatory)
-            # '@' delimiter iff it's a by-digest URI (optional)
-            r"(?P<digest_at>@)?"
-            # Digest ('sha256:' + 64 lowercase hex chars) iff '@' is present
-            r"(?(digest_at)(?P<digest>sha256:[0-9a-f]{64}))"
-            # Tag colon if it's a by-digest URI (optional)
-            # Not allowed if we found a digest
-            r"(?(digest)|(?P<tag_colon>:))?"
-            # Tag (if tag colon is present)
-            r"(?(tag_colon)(?P<tag>[\w\-.]+))"
-            r"$",
+            r"(?::(?P<tag>[\w\-.]+))?"  # Tag (optional, e.g. :latest)
+            r"(?:@(?P<digest>sha256:[0-9a-f]{64}))?",  # Digest (optional, e.g. @sha256:...)
             image_url,
         )
 
@@ -538,8 +536,7 @@ class Image:  # noqa: PLW1641
         if repository is None and registry == "docker.io":
             repository = "library"
 
-        # By-digest URIs don't use tags; but otherwise default to `latest` if
-        # absent
+        # Default to 'latest' tag if neither tag nor digest is specified
         tag = image_url_struct.get("tag")
         digest = image_url_struct.get("digest")
         if digest is None and tag is None:
@@ -693,5 +690,10 @@ class Image:  # noqa: PLW1641
         return f"{self.__class__.__name__}(url='{self}')"
 
     def __str__(self) -> str:
-        url = self.url_digest if self.tag is None else self.url_tag
+        if self.tag is None:
+            url = self.url_digest
+        else:
+            url = self.url_tag
+            if self._digest_paired_with_tag and self._cache_digest is not None:
+                url += f"@{self._cache_digest}"
         return f"{self.scheme}{url}"
