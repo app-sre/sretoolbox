@@ -176,6 +176,11 @@ STR_DATA = [
         f"registry.access.redhat.com/ubi8/ubi-minimal:{TAG}",
         f"docker://registry.access.redhat.com/ubi8/ubi-minimal:{TAG}",
     ),
+    # By tag and digest stringifies with both (round-trip preserves digest pinning)
+    (
+        f"quay.io/app-sre/pagerduty-operator-registry:{TAG}@{A_SHA}",
+        f"docker://quay.io/app-sre/pagerduty-operator-registry:{TAG}@{A_SHA}",
+    ),
 ]
 
 

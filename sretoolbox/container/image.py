@@ -159,6 +159,13 @@ class Image:  # noqa: PLW1641
         self._cache_content_type: str | None = None
         # If the URL was by-digest, we can cache this right away.
         self._cache_digest = str(image_data.digest) if image_data.digest else None
+        # True only when both tag and digest were in the original URL and no
+        # tag_override was applied — meaning the digest still corresponds to the tag.
+        self._digest_paired_with_tag = (
+            image_data.tag is not None
+            and image_data.digest is not None
+            and tag_override is None
+        )
 
     def _can_response_be_cached(self) -> bool:
         # Determines if we have a method to handle response cache entries for
@@ -683,5 +690,10 @@ class Image:  # noqa: PLW1641
         return f"{self.__class__.__name__}(url='{self}')"
 
     def __str__(self) -> str:
-        url = self.url_digest if self.tag is None else self.url_tag
+        if self.tag is None:
+            url = self.url_digest
+        else:
+            url = self.url_tag
+            if self._digest_paired_with_tag and self._cache_digest is not None:
+                url += f"@{self._cache_digest}"
         return f"{self.scheme}{url}"
