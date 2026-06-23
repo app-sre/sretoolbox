@@ -33,10 +33,12 @@
 
 from __future__ import annotations
 
+import inspect
 import itertools
+import random
 import time
 from functools import wraps
-from typing import TYPE_CHECKING, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Literal, ParamSpec, TypeVar
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -45,6 +47,78 @@ if TYPE_CHECKING:
 P = ParamSpec("P")
 T = TypeVar("T")
 
+BackoffStrategy = Literal["linear", "exponential"]
+
+
+def _validate_retry_params(
+    max_attempts: int,
+    backoff: BackoffStrategy,
+    backoff_base: float,
+    backoff_max: float | None,
+) -> None:
+    if max_attempts < 1:
+        msg = "max_attempts must be >= 1"
+        raise ValueError(msg)
+    if backoff == "exponential":
+        if backoff_base <= 0:
+            msg = "backoff_base must be > 0 when backoff='exponential'"
+            raise ValueError(msg)
+        if backoff_max is not None and backoff_max <= 0:
+            msg = "backoff_max must be > 0 when set"
+            raise ValueError(msg)
+
+
+def _compute_delay(
+    attempt: int,
+    *,
+    backoff: BackoffStrategy,
+    backoff_base: float,
+    backoff_max: float | None,
+    jitter: bool,
+) -> float:
+    if backoff == "linear":
+        delay = float(attempt)
+    else:
+        delay = backoff_base ** (attempt - 1)
+        if backoff_max is not None:
+            delay = min(delay, backoff_max)
+    if jitter:
+        return random.uniform(0, delay)  # noqa: S311
+    return delay
+
+
+def _positional_param_count(signature: inspect.Signature) -> int:
+    return sum(
+        1
+        for param in signature.parameters.values()
+        if param.kind
+        in {
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        }
+    )
+
+
+def _invoke_hook(
+    hook: Callable[..., None] | None,
+    exception: Exception,
+    attempt: int,
+    max_attempts: int,
+) -> None:
+    if not callable(hook):
+        return
+    try:
+        param_count = _positional_param_count(inspect.signature(hook))
+    except (TypeError, ValueError):
+        hook(exception)
+        return
+    if param_count >= 3:
+        hook(exception, attempt, max_attempts)
+    elif param_count >= 2:
+        hook(exception, attempt)
+    else:
+        hook(exception)
+
 
 # Original Code:
 # https://github.com/saltycrane/retry-decorator/blob/a26fe27/retry_decorator.py
@@ -52,7 +126,12 @@ def retry(
     exceptions: type[Exception] | tuple[type[Exception], ...] = Exception,
     max_attempts: int = 3,
     no_retry_exceptions: tuple[type[Exception], ...] = (),
-    hook: Callable[[Exception], None] | None = None,
+    hook: Callable[..., None] | None = None,
+    *,
+    backoff: BackoffStrategy = "linear",
+    backoff_base: float = 2.0,
+    backoff_max: float | None = None,
+    jitter: bool = False,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Adds resilience to function calls.
 
@@ -69,12 +148,25 @@ def retry(
     :param no_retry_exceptions: exceptions to be excluded from the retry,
         defaults to ()
     :type no_retry_exceptions: tuple, optional
-    :param hook: function which will be triggered each time there is a retry
-        attempt, defaults to None
-    :type hook: function(Exception), optional
+    :param hook: function called before each retry sleep. Accepts ``(exception)``,
+        ``(exception, attempt)``, or ``(exception, attempt, max_attempts)`` depending
+        on the hook signature.
+    :type hook: Callable, optional
+    :param backoff: delay strategy between retries. ``linear`` sleeps for ``attempt``
+        seconds (default, unchanged legacy behavior). ``exponential`` sleeps for
+        ``backoff_base ** (attempt - 1)`` seconds, optionally capped by ``backoff_max``.
+    :type backoff: str, optional
+    :param backoff_base: base for exponential backoff, defaults to 2.0
+    :type backoff_base: float, optional
+    :param backoff_max: maximum delay in seconds for exponential backoff
+    :type backoff_max: float | None, optional
+    :param jitter: when True, apply full jitter by sleeping for a random duration
+        in ``[0, delay]`` instead of the full computed delay
+    :type jitter: bool, optional
     :return: decorated function
     :rtype: function
     """
+    _validate_retry_params(max_attempts, backoff, backoff_base, backoff_max)
 
     def deco_retry(function: Callable[P, T]) -> Callable[P, T]:
         @wraps(function)
@@ -87,9 +179,15 @@ def retry(
                 except exceptions as exception:
                     if attempt > max_attempts - 1:
                         raise
-                    if callable(hook):
-                        hook(exception)
-                    time.sleep(attempt)
+                    _invoke_hook(hook, exception, attempt, max_attempts)
+                    delay = _compute_delay(
+                        attempt,
+                        backoff=backoff,
+                        backoff_base=backoff_base,
+                        backoff_max=backoff_max,
+                        jitter=jitter,
+                    )
+                    time.sleep(delay)
             # make mypy happy
             raise RuntimeError("Unreachable code in retry decorator")
 
