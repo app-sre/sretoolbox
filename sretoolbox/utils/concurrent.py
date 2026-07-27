@@ -97,7 +97,7 @@ def _catching_traceback(
 ) -> Any:
     try:
         return func(*args, **kwargs)
-    except BaseException as details:  # noqa: BLE001
+    except BaseException as details:  # ruff: ignore[blind-except]
         return details
 
 

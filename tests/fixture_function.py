@@ -7,7 +7,7 @@ def identity(x: Any) -> Any:
 
 
 def raiser(*_args: Any, **_kwargs: Any) -> None:
-    raise Exception("Oh noes!")  # noqa: TRY002
+    raise Exception("Oh noes!")  # ruff: ignore[raise-vanilla-class]
 
 
 def sys_exit_func(arg: str | int | None = None) -> None:

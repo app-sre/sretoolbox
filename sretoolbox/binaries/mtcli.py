@@ -79,6 +79,6 @@ class Mtcli(Binary):
         os.rename(bin_path, mtcli_path)
 
         # Making it executable
-        os.chmod(mtcli_path, 0o777)  # noqa: S103
+        os.chmod(mtcli_path, 0o777)  # ruff: ignore[bad-file-permissions]
 
         return mtcli_path

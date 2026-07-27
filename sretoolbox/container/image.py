@@ -81,7 +81,7 @@ class ImageData:
     digest: str | None = None
 
 
-class Image:  # noqa: PLW1641
+class Image:  # ruff: ignore[eq-without-hash]
     """Represents a container image.
 
     :param url: The image url. E.g. docker.io/fedora
