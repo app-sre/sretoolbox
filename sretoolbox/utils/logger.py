@@ -46,7 +46,7 @@ def get_text_logger(
     :return: text logger
     :rtype: logging.Logger
     """
-    return LoggersSingleton(name=name, kind=LoggerType.TEXT, stream=stream, level=level)  # type: ignore[return-value]
+    return LoggersSingleton(name=name, kind=LoggerType.TEXT, stream=stream, level=level)
 
 
 def get_json_logger(
@@ -64,7 +64,7 @@ def get_json_logger(
     :return: text logger
     :rtype: logging.Logger
     """
-    return LoggersSingleton(name=name, kind=LoggerType.JSON, stream=stream, level=level)  # type: ignore[return-value]
+    return LoggersSingleton(name=name, kind=LoggerType.JSON, stream=stream, level=level)
 
 
 def _setup_text_logger(name: str, stream: TextIO, level: int) -> logging.Logger:
