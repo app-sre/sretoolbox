@@ -62,5 +62,5 @@ class Opm(Binary):
         :param path: The downloaded file path
         :return: The executable binary path.
         """
-        os.chmod(path, 0o777)  # noqa: S103
+        os.chmod(path, 0o777)  # ruff: ignore[bad-file-permissions]
         return path

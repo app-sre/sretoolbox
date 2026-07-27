@@ -20,6 +20,6 @@ from collections.abc import Sequence
 
 def run(cmd: Sequence[str] | str) -> str:
     """Calls subprocess.run with select options."""
-    return subprocess.run(  # noqa: S603
+    return subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true]
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True
     ).stdout.decode()

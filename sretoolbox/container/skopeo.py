@@ -138,7 +138,7 @@ class Skopeo:
             if self.dry_run:
                 return ""
 
-        result = subprocess.run(cmd, check=False, capture_output=True)  # noqa: S603
+        result = subprocess.run(cmd, check=False, capture_output=True)  # ruff: ignore[subprocess-without-shell-equals-true]
 
         for line in result.stdout.decode().splitlines():
             _LOG.debug(" %s", line)

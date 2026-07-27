@@ -1,4 +1,4 @@
-# ruff: noqa: S105, S106, SLF001, FURB101, FBT003
+# ruff: file-ignore[hardcoded-password-string, hardcoded-password-func-arg, private-member-access, read-whole-file, boolean-positional-value-in-call]
 from __future__ import annotations
 
 # Copyright 2021 Red Hat
@@ -726,7 +726,7 @@ class TestImageComparison:
         oci_image = Image(oci_image_mock["url"])
         oci_fat_image = Image(oci_fat_image_mock["url"])
 
-        assert v1_image == v1_image  # noqa: PLR0124
+        assert v1_image == v1_image  # ruff: ignore[comparison-with-itself]
         assert v1_image != v2_image
         assert v1_image != v2_fat_image
         assert v1_image != oci_image
@@ -746,7 +746,7 @@ class TestImageComparison:
         oci_image = Image(oci_image_mock["url"])
         oci_fat_image = Image(oci_fat_image_mock["url"])
 
-        assert v2_image == v2_image  # noqa: PLR0124
+        assert v2_image == v2_image  # ruff: ignore[comparison-with-itself]
         assert v2_image != v1_image
         assert v2_image != v2_fat_image
         assert v2_image != oci_image
@@ -766,7 +766,7 @@ class TestImageComparison:
         oci_image = Image(oci_image_mock["url"])
         oci_fat_image = Image(oci_fat_image_mock["url"])
 
-        assert v2_fat_image == v2_fat_image  # noqa: PLR0124
+        assert v2_fat_image == v2_fat_image  # ruff: ignore[comparison-with-itself]
         assert v2_fat_image != v1_image
         assert v2_fat_image != v2_image
         assert v2_fat_image != oci_image
@@ -786,7 +786,7 @@ class TestImageComparison:
         oci_image = Image(oci_image_mock["url"])
         oci_fat_image = Image(oci_fat_image_mock["url"])
 
-        assert oci_image == oci_image  # noqa: PLR0124
+        assert oci_image == oci_image  # ruff: ignore[comparison-with-itself]
         assert oci_image != v1_image
         assert oci_image != v2_image
         assert oci_image != v2_fat_image
@@ -806,7 +806,7 @@ class TestImageComparison:
         oci_image = Image(oci_image_mock["url"])
         oci_fat_image = Image(oci_fat_image_mock["url"])
 
-        assert oci_fat_image == oci_fat_image  # noqa: PLR0124
+        assert oci_fat_image == oci_fat_image  # ruff: ignore[comparison-with-itself]
         assert oci_fat_image != v1_image
         assert oci_fat_image != v2_image
         assert oci_fat_image != v2_fat_image

@@ -81,6 +81,6 @@ class Oc(Binary):
         os.rename(bin_path, oc_path)
 
         # Making it executable
-        os.chmod(oc_path, 0o777)  # noqa: S103
+        os.chmod(oc_path, 0o777)  # ruff: ignore[bad-file-permissions]
 
         return oc_path
