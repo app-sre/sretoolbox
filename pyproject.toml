@@ -27,8 +27,8 @@ dev = [
     "pytest-cov==7.1.0",
     "pytest==9.2.0",
     "requests-mock==1.12.1",
-    "ruff==0.17.3",
-    "types-requests==2.33.0.20261006",
+    "ruff==0.17.4",
+    "types-requests==2.33.0.20261030",
 ]
 
 [build-system]
