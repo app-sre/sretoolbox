@@ -1,5 +1,5 @@
 # vi:set ft=dockerfile:
-FROM registry.access.redhat.com/ubi10/python-314-minimal@sha256:b556ee5d44e79ca5a58327445eaa711a405656348a1aae7fa3e21c1d3e6b24b0 AS test
+FROM registry.access.redhat.com/ubi10/python-314-minimal@sha256:6a3ac934913b426ccf9a9d8406084e47044ef8da88a6722a3acc60ac990595c3 AS test
 COPY --from=ghcr.io/astral-sh/uv:0.13.9@sha256:d3b601f0c7b118bc1753febf7c41cc80981df678445e0254284eecf84db79a7d /uv /bin/uv
 COPY LICENSE /licenses/
 
